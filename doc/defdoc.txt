@@ -1,0 +1,145 @@
+.def files format.
+
+Messages format and protocols content can be defined in .def file.
+
+Each field of a message have a type.
+All types used in messages must be defined beforehand.
+Type definition:
+
+type <typename>
+
+It is also possible to declare enums:
+
+enum <typename> <enumname>
+  <itemname> <itemvalue>
+end
+
+typename is name of an existing type
+enumname is name of a new type of this enum.
+
+Fields and messages can have optional properties - attached to field
+value of boolean, int or string type.
+Each property can have several variables.
+Property definition:
+
+property <property name> <property type>
+  [default [message]]
+  <variable name1> <variable value1>
+  [<variable name2> <variable value2>]
+  <...>
+end
+
+If default is specified, then all variables of this
+property are attached by default to each field.
+If default message is specified, then all variables
+of this property are attached to each message.
+
+<property type> can be one of _bool, _int, _string.
+
+It it possible to declare commonly used fields beforehand in fieldsets:
+fieldset <name>
+  <field1 type> <field1 name> <field1 tag> [<property>[=<value>] ...]
+  <field2 type> <field2 name> <field2 tag> [<property>[=<value>] ...]
+  // it is also possible to specify tag first
+  <field3 tag> <field3 type> <field3 name> [<property>[=<value>] ...]
+  <...>
+end
+
+Message definition :
+
+message <messagename> [message tag]
+  [version <int number>.<int number>]
+  [property <property name>=<property value>]
+  <field1 type> <field1 name> <field1 tag> [<property>[=<value>] ...]
+  <field2 type> <field2 name> <field2 tag> [<property>[=<value>] ...]
+  // it is also possible to specify tag first
+  <field3 tag> <field3 type> <field3 name> [<property>[=<value>] ...]
+  <fieldX name> //name of field defined in some fieldset
+  <fieldset>.<fieldname> //field defined in specific fieldset
+  <...>
+end
+
+Message tag is integer or hex value.
+If message have tag than variable 'message.havetag' is true
+and variable 'message.tag' contains tag value.
+Version must be defined for each message if requireMessageVersion
+in project file is set to true.
+Properties of message do not need to be declared.
+They are exported as variables with prefix 'message.'
+both in message template and messages loop in protocol template.
+
+Another message also can be used as a field of a message.
+In this case field.type is equal to 'nested' and name of nested message contained in
+variable  field.typename.
+If field type is enum, field.type is equal to 'enum' and enum name contained in
+variable field.typename.
+
+Exported to message template variables:
+message.name
+message.havetag
+message.tag
+version.major
+version.minor
+message.haveparent
+message.parent
+message.parentpackage
+field loop
+  field.name
+  field.first - true for first field
+  field.last - true for last field
+  field.type
+  field.typename - for nested type and enums
+  field.fieldset - name of fieldset for fields from fieldset
+  field.package - name of package of fieldset for fields from fieldset
+  field.typepackage - name of package for nested type and enum
+  field.tag
+
+Exported to enum template variables:
+enum.name
+enum.type
+item loop
+  item.first
+  item.last
+  item.name
+  item.value
+
+Protocol definition:
+protocol <protocol name>
+  <message1 name> [<property name1>=<property value1> <...>]
+  <message2 name> [<property name1>=<property value1> <...>]
+  <...>
+end
+
+Exported to template variables:
+protocol.name
+message loop
+  message.name
+  message.first
+  message.last
+  message.tag
+
+To include other definition into definition file include keyword can be used:
+
+include filename.def
+
+Package name can be defined, and all messages, enums, fieldsets and protocol below
+package definition will belong to that package:
+
+package pkg.name
+
+Dot can be used as separator. If package is used, '.package' variable and loop are defined
+for messages, enums, protocols and fieldsets. If used as a variable, it will contain string,
+and if used as a loop, 'package.part' variable will contain package string split by '.'.
+If packages are defined, only messages, enums and fieldsets in the same package as protocol
+are automatically generated.
+
+c-style comments are supported:
+// one line comment
+/*
+multiline comment
+*/
+
+To use keyword as a name of a field or a message use the backticks:
+message `enum`
+  1 string `message`
+end

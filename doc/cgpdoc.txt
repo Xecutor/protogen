@@ -1,0 +1,74 @@
+.cgp file format (aka code gen project).
+
+Code gen project consist of options definitions.
+general option definition:
+<option name>[:<index>]=<option value>
+if index is not specified value is added to an option.
+Index is 1-based and MUST be increased by 1. Gaps are not allowed.
+To override all values, following assignment could be used:
+<option name>::=<option value>
+
+Following options are avialable:
+source=<filename.def>
+  Add .def file to be parsed.
+search.path=<path>
+  Add path where .def and .tmpl files are searched.
+out.dir=<path>
+  Add output dir. Directory with index equal to index of extension is used.
+out.protocol.dir=<path>
+out.message.dir=<path>
+out.enum.dir=<path>
+out.fieldset.dir=<path>
+  Specific output dir for protocol(s), message(s), enum(s) and fieldset(s).
+message.template=<filename.tmpl>
+  .tmpl file for generated messages.
+protocol.template=<filename.tmpl>
+  .tmpl file for generated protocols
+enum.template=<filename.tmpl>
+  .tmpl file for generated enums.
+fieldset.template=<filename.tmpl>
+  .tmpl file for generated fieldsets.
+out.extension=<ext without dot>
+  Extension that is added to protocol, message and enum name for generated files.
+out.protocol.extension=<ext>
+out.message.extension=<ext>
+out.enum.extension=<ext>
+out.fieldset.extension=<ext>
+  Specific extensions for protocol, message, enum or fieldset.
+out.protocol.prefix=<text>
+  Add prefix to filename of protocol template with corresponding index.
+out.protocol.suffix=<text>
+  Add suffix to filename of protocol template with corresponding index.
+out.message.prefix=<text>
+out.message.suffix=<text>
+out.enum.prefix=<text>
+out.enum.suffix=<text>
+out.fieldset.prefix=<text>
+out.fieldset.suffix=<text>
+  Prefixes and suffixes for filenames of messages and enums.
+generate.protocol=<name of protocol>
+  Add protocol that should be generated.
+  By default all defined protocol and referenced messages and enumes are generated,
+  if this option is not used.
+generate.message=<name of message>
+  Add message that should be generated.
+  Can be used for messages that are not defined in protocols.
+generate.enum=<name of enum>
+  '*' can be used to generate all defined enums.
+generate.fieldset=<name of fieldset>
+generate.package=<name of package>
+  Generate everything in specified package.
+  Wildcard can be used.
+option:<optionname>=<true|false>
+  Set boolean condition that can be used in templates
+idxoption:<optionname>=<true|false>
+  Set boolean variable specific to index of template.
+  Only have sense if there are more than one template specified.
+data:<variablename>=<value>
+  Set variable value that can be used in template
+data:<loopname>:<index>[:<loop variable>]=<value>
+  Set loop data.
+  Index is 1 based and should be sequential.
+  If loop variable is not specified, it is the same as loop name.
+idxdata:<variable name>=<value>
+  Set variable specific to index of template.

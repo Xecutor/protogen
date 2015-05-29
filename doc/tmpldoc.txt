@@ -1,0 +1,106 @@
+.tmpl file format.
+
+Notation: words in angle brackets denote meaning of the word
+in brackts. Words in square brackts denote optional parts.
+
+When generating source code from template all template variables are
+replaced with corresponding values. Control flow template
+constructs do not leave any trace in resulting file.
+If line contains only control flow template constructs,
+empty line is eliminated from the output.
+
+All template tags have following form $<tagname>[ value]$.
+If tag supports closing tag, it has following form $-<tagname>$.
+To make '$' symbol in a source, '$$' could be used.
+
+Supported tags:
+$var <varname>[:<flags>]$
+  Insert variable. Do not have closing tag.
+  supported flags are:
+    uc  - uppercased value of variable
+    ucf - value of variable with first letter uppercased
+    hex - treat value of variable as integer and convert it to hex
+
+  Custom variables can be defined in project file.
+
+$foreach <loopname>$
+<loop content>
+$-foreach$
+  Iterate over loop repeating content with different loop variables.
+  Custom loops can be defined in a project file.
+
+$select <varname>$
+$case <value1>$<content1>
+$case <value2>$<content2>
+<...>
+[$default$<content for other case>]
+$-select$
+  Content of case corresponding to value of variable selected.
+  Important note - if you write cases like this:
+  $select field.type$
+    $case uint16$uint16_t
+    $case uint32$uint32_t
+  $-select$
+  Spaces before each case will be part of content of previous case and
+  can mess up formating.
+
+$macro <macroname>$
+<macro content>
+$-macro$
+  Define macro. Arguments placeholders are: %1, %2, %3 etc.
+  '%' symbol should be doubled ('%%').
+  IMPORTANT: nested macro definitions ARE NOT SUPPORTED (YET?).
+  IMPORTANT: macro cannot contain incomplete template constructs.
+  It's not possible to have $if var$ in one macro and $-if$ in another.
+
+$expand <macroname> <arg1> [<arg2> ...]$
+  Expand macro.
+
+$pack$
+<content>
+$-pack$
+  Pack content into one line, replacing 'end of line' with space and multiple spaces into one.
+
+$if <condition>$
+<content>
+[$else$
+<other content>]
+$-if$
+  Include content in result if condition is true.
+  Conditional variables can be defined in project file as an option.
+  Supported expressions are:
+  boolvar
+  !boolvar
+  varname=="text"
+  varname!="text"
+  varname1==varname2
+  varname1!=varname2
+  expr1 || expr2
+  expr1 && expr2
+  (expr)
+  !(expr)
+
+$ifdef <varname>$
+<content>
+[$else$
+<other content>]
+$-ifdef$
+  Include content in result if specified variable is defined.
+
+$ifndef <varname$
+<content>
+[$else$
+<other content>]
+$-ifndef$
+  Include content in result if specified variable is not defined.
+
+$setbool <varname> (true|false)$
+  Set boolean variable that can be used in $if$ later.
+
+$setvar <varname> <var value>$
+  Set value of variable. It is possible to insert values of other variables using %varname% syntax.
+  To use '%' symbol in a value, double it.
+  Example: $setvar fullPath %path%/%filename%$
+
+$include <filename>$
+  Include content of file with name <filename> into current template.
