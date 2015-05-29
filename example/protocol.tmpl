@@ -1,0 +1,5 @@
+protocolName=$var protocol.name$
+messages:
+$foreach message$
+  $var message.name$ $if message.inmsg$inmsg$-if$$if message.outmsg$outmsg$-if$
+$-foreach$

@@ -1,0 +1,26 @@
+type bool
+type int
+type string
+type date
+type location
+
+property opt _bool
+  optional true
+  mandatory false
+end
+
+property mnd _bool
+  default
+  optional false
+  mandatory true
+end
+
+property outmsg _bool
+  outmsg true
+  inmsg false
+end
+
+property inmsg _bool
+  inmsg true
+  outmsg false
+end

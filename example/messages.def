@@ -1,0 +1,73 @@
+include types.def
+
+
+enum int AccessLevel
+  ReadOnly 1
+  ReadWrite 2
+  Administrative 3
+end
+
+message Response
+  1 int status
+  2 string error opt
+end
+
+message LoginRequest 0x0001
+  1 string userName
+  2 string password
+  3 AccessLevel accessLevel
+end
+
+message LoginRequestResp: Response 0x1001
+end
+
+enum int DataType
+  Person 1
+  Location 2
+end
+
+message PersonData
+  1 int uid
+  2 string firstName
+  3 string lastName
+  4 date birthDate
+end
+
+message LocationData
+  1 location coordinates
+  2 string name
+end
+
+message FindData 0x0002
+  1 DataType dataType
+  2 string request
+end
+
+message FindDataResp:Response 0x1002
+  1 PersonData personData opt
+  2 LocationData locationData opt
+end
+
+enum int PersonDataField
+  FirstName 1
+  LastName  2
+  BirthDate 3
+end
+
+message ModifyPersonData 0x0003
+  1 int uid
+  2 PersonDataField dataField
+  3 string firstName opt
+  4 string lastName opt
+  5 date birthDate opt
+end
+
+message ModifyPersonDataResp:Response 0x1003
+end
+
+message DeletePerson 0x0004
+  1 int uid
+end
+
+message DeletePersonResp:Response 0x1004
+end

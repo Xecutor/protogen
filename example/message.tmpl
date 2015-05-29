@@ -1,0 +1,22 @@
+messageName=$var message.name$
+$if message.haveparent$
+parentMessage=$var message.parent$
+$-if$
+
+fields:
+$foreach field$
+{
+  tag=$var field.tag$
+  name=$var field.name$
+  type=$pack$$select field.type$
+$case nested$$var field.typename$
+$case enum$$var field.typename$
+$default $var field.type$
+$-select$$-pack$
+
+$if field.optional$
+  optional
+$-if$
+}$if !field.last$,$-if$
+
+$-foreach$

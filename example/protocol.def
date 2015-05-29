@@ -1,0 +1,12 @@
+include messages.def
+
+protocol SampleProto
+  LoginRequest outmsg
+  LoginRequestResp inmsg
+  FindData outmsg
+  FindDataResp inmsg
+  ModifyPersonData outmsg
+  ModifyPersonDataResp inmsg
+  DeletePerson outmsg
+  DeletePersonResp inmsg
+end

@@ -1,0 +1,10 @@
+source=protocol.def
+
+out.dir=out
+
+message.template=message.tmpl
+protocol.template=protocol.tmpl
+enum.template=enum.tmpl
+
+out.extension=txt
+
