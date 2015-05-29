@@ -1,0 +1,401 @@
+#ifndef __PROTOGEN_TEMPLATE_HPP__
+#define __PROTOGEN_TEMPLATE_HPP__
+
+#include <map>
+#include <vector>
+#include <string>
+#include <ctype.h>
+#include <exception>
+#include "FileReader.hpp"
+
+namespace protogen{
+
+
+class CaseNotFoundException:public std::exception{
+public:
+  CaseNotFoundException(const std::string& varName,const std::string& caseValue)
+  {
+    msg="Case '"+caseValue+"' not found for variable '"+varName+"'";
+  }
+  virtual ~CaseNotFoundException()throw()
+  {
+  }
+  const char* what()const throw()
+  {
+    return msg.c_str();
+  }
+protected:
+  std::string msg;
+};
+
+class UnknownCmd:public std::exception{
+public:
+  UnknownCmd(const std::string& cmd,const std::string& file,int line,int col)
+  {
+    msg="Unknown template command '";
+    msg+=cmd;
+    msg+="' at ";
+    msg+=file;
+    char buf[32];
+    sprintf(buf,":%d:%d",line,col);
+    msg+=buf;
+  }
+  ~UnknownCmd()throw()
+  {
+  }
+  const char* what()const throw()
+  {
+    return msg.c_str();
+  }
+protected:
+  std::string msg;
+};
+
+class BoolExprParsingExpr:public std::exception{
+public:
+  BoolExprParsingExpr(const std::string& argMsg,int argCol):msg(argMsg),col(argCol){}
+  ~BoolExprParsingExpr()throw()
+  {
+  }
+  const char* what()const throw()
+  {
+    return msg.c_str();
+  }
+  std::string msg;
+  int col;
+};
+
+class TemplateParsingException:public std::exception{
+public:
+  TemplateParsingException(const std::string& txt,const std::string& file,int line,int col)
+  {
+    msg=txt;
+    msg+=" at ";
+    msg+=file;
+    char buf[32];
+    sprintf(buf,":%d:%d",line,col);
+    msg+=buf;
+  }
+  ~TemplateParsingException()throw()
+  {
+  }
+  const char* what()const throw()
+  {
+    return msg.c_str();
+  }
+protected:
+  std::string msg;
+};
+
+class IFileFinder{
+public:
+  virtual ~IFileFinder(){}
+  virtual std::string findFile(const std::string& fileName)=0;
+};
+
+class Template{
+public:
+  Template():ff(0)
+  {
+
+  }
+
+  void assignFileFinder(IFileFinder* argFf)
+  {
+    ff=argFf;
+  }
+
+  void Parse(const std::string& fileName);
+
+  void dump();
+
+  template <class DataSource>
+  std::string Generate(DataSource& ds)
+  {
+    int idx=0;
+    std::string rv;
+    std::string::size_type packStart=0;
+    int packCnt=0;
+    try{
+      for(;ops[idx].op!=opEnd;)
+      {
+        //printf("%d,%d,%d\n",idx,ops[idx].line,ops[idx].col);fflush(stdout);
+        switch(ops[idx].op)
+        {
+          case opText:
+            rv+=ops[idx].value;
+            break;
+          case opVar:
+          {
+            if(ops[idx].varFlag==varFlagNone)
+            {
+              rv+=ds.getVar(ops[idx].value);
+            }else if(ops[idx].varFlag==varFlagUcf)
+            {
+              std::string val=ds.getVar(ops[idx].value);
+              if(val.length())
+              {
+                val[0]=toupper(val[0]);
+              }
+              rv+=val;
+            }else if(ops[idx].varFlag==varFlagUc)
+            {
+              std::string val=ds.getVar(ops[idx].value);
+              for(std::string::size_type i=0;i<val.length();i++)
+              {
+                val[i]=toupper(val[i]);
+              }
+              rv+=val;
+            }else if(ops[idx].varFlag==varFlagHex)
+            {
+              int val=atoi(ds.getVar(ops[idx].value).c_str());
+              char buf[32];
+              sprintf(buf,"0x%x",val);
+              rv+=buf;
+            }
+          }break;
+          case opSetBool:
+          {
+            ds.setBool(ops[idx].value,ops[idx].varFlag);
+          }break;
+          case opSetVar:
+          {
+            std::string& varName=ops[idx].value;
+            OpVector& varOps=ops[idx].varValue;
+            varOps.swap(ops);
+            try{
+              ds.setVar(varName,Generate(ds));
+            }catch(...)
+            {
+              varOps.swap(ops);
+              throw;
+            }
+            varOps.swap(ops);
+          }break;
+          case opLoop:
+          {
+            if(ds.loopNext(ops[idx].value))
+            {
+              break;
+            }
+            idx=ops[idx].jidx;
+            continue;
+          }break;
+          case opIf:
+          {
+            if(ops[idx].boolValue.eval(ds))
+            {
+              break;
+            }else
+            {
+              idx=ops[idx].jidx;
+              continue;
+            }
+          }
+          case opIfdef:
+          {
+            if(ds.haveVar(ops[idx].value))
+            {
+              break;
+            }
+            idx=ops[idx].jidx;
+            continue;
+          }break;
+          case opIfndef:
+          {
+            if(!ds.haveVar(ops[idx].value))
+            {
+              break;
+            }
+            idx=ops[idx].jidx;
+            continue;
+          }break;
+          case opJump:idx=ops[idx].jidx;continue;
+          case opSelect:
+          {
+            SelectMap::iterator it=ops[idx].smap.find(ds.getVar(ops[idx].value));
+            if(it==ops[idx].smap.end())
+            {
+              it=ops[idx].smap.find("");
+              if(it==ops[idx].smap.end())
+              {
+                throw CaseNotFoundException(ops[idx].value,ds.getVar(ops[idx].value));
+              }
+            }
+            idx=it->second;
+            continue;
+          }break;
+          case opPack:
+            if(packCnt==0)
+            {
+              packStart=rv.length();
+            }
+            packCnt++;
+            //printf("pack:%d(start=%lu)\n",packCnt,packStart);
+            break;
+          case opPackEnd:
+          {
+            packCnt--;
+            //printf("packend:%d(start=%lu)\n",packCnt,packStart);
+            if(packCnt!=0)break;
+            std::string::size_type i=packStart;
+            while(i<rv.length() && isspace(rv[i]))
+            {
+              i++;
+            }
+            rv.erase(packStart,i-packStart);
+            i=rv.length()-1;
+            while(i>packStart && isspace(rv[i]))
+            {
+              i--;
+            }
+            if(!isspace(rv[i]))
+            {
+              i++;
+            }
+            if(i>packStart)
+            {
+              rv.erase(i);
+            }
+            for(i=packStart;i<rv.length();i++)
+            {
+              if(rv[i]==0x0a || rv[i]==0x0d || rv[i]==0x09)
+              {
+                rv[i]=' ';
+              }
+            }
+            i=packStart;
+            while((i=rv.find(' ',i))!=std::string::npos)
+            {
+              while(i<rv.length()-1 && rv[i+1]==' ')
+              {
+                rv.erase(i,1);
+              }
+              i++;
+            }
+          }break;
+          case opEnd:continue;
+        }
+        idx++;
+      }
+    }catch(std::exception& e)
+    {
+      std::string msg="Exception during code generation:'";
+      msg+=e.what();
+      msg+="'";
+      throw TemplateParsingException(msg,files[ops[idx].fidx],ops[idx].line,ops[idx].col);
+    }
+    return rv;
+  }
+
+protected:
+  enum OpCode{
+    opText,
+    opVar,
+    opLoop,
+    opIf,
+    opIfdef,
+    opIfndef,
+    opJump,
+    opSelect,
+    opPack,
+    opPackEnd,
+    opSetBool,
+    opSetVar,
+    opEnd
+  };
+  enum VarFlags{
+    varFlagNone,
+    varFlagUc,
+    varFlagUcf,
+    varFlagHex
+  };
+  typedef std::map<std::string,int> SelectMap;
+
+  enum BoolOp{
+    bopNone,
+    bopVar,
+    bopNotVar,
+    bopNot,
+    bopEqVal,
+    bopNeqVal,
+    bopEqVar,
+    bopNeqVar,
+    bopAnd,
+    bopOr
+  };
+  struct BoolTree{
+    BoolOp bop;
+    std::string varName;
+    std::string value;
+    BoolTree* left,*right;
+    BoolTree():bop(bopNone),left(0),right(0){}
+    BoolTree(const BoolTree& other):bop(other.bop),varName(other.varName),value(other.value)
+    {
+      left=other.left?new BoolTree(*other.left):0;
+      right=other.right?new BoolTree(*other.right):0;
+    }
+    template <class DataSource>
+    bool eval(DataSource& ds)
+    {
+      switch(bop)
+      {
+        case bopAnd:return left->eval(ds) && right->eval(ds);
+        case bopOr:return left->eval(ds) || right->eval(ds);
+        case bopVar:return ds.getBool(varName);break;
+        case bopNotVar:return !ds.getBool(varName);break;
+        case bopEqVal:
+          //fprintf(stderr,"eqval:%s==%s\n",varName.c_str(),value.c_str());
+          return ds.getVar(varName)==value;break;
+        case bopNeqVal:return ds.getVar(varName)!=value;break;
+        case bopEqVar:
+          //fprintf(stderr,"eqvar:%s==%s\n",varName.c_str(),value.c_str());
+          return ds.getVar(varName)==ds.getVar(value);break;
+        case bopNeqVar:return ds.getVar(varName)!=ds.getVar(value);break;
+        case bopNot:return !left->eval(ds);
+        default:throw std::runtime_error("invalid bool op!");
+      }
+    }
+    ~BoolTree()
+    {
+      if(left)delete left;
+      if(right)delete right;
+    }
+  };
+
+  struct Op;
+  typedef std::vector<Op> OpVector;
+  struct Op{
+    Op():op(opEnd),jidx(-1),line(0),col(0),fidx(0),varFlag(varFlagNone)
+    {
+    }
+    OpCode op;
+    std::string value;
+    OpVector varValue;
+    BoolTree boolValue;
+    int jidx;
+    int line;
+    int col;
+    int fidx;
+    int varFlag;
+    SelectMap smap;
+  };
+  OpVector ops;
+  IFileFinder* ff;
+  StrVector files;
+  struct MacroInfo{
+    std::string macroName;
+    std::string macroText;
+  };
+  typedef std::map<std::string,MacroInfo> MacroMap;
+  MacroMap macroMap;
+
+  void Parse(FileReader& fr);
+  std::string expandMacro(const MacroInfo& mi,const std::vector<std::string>& args,const std::string& fileName,int line,int col);
+  int parseBool(const std::string& expr,BoolTree& bt,std::string::size_type pos=0,int prio=0);
+
+};
+}
+
+#endif
+
