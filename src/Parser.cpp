@@ -319,7 +319,7 @@ void Parser::parseFile(const char* fileName)
   Property curProperty;
   Enum curEnum;
   bool enumHaveType=false;
-  int tag;
+  int tag=0;
   bool haveTag=false;
 
   StrVector pkgStack;
@@ -359,8 +359,33 @@ void Parser::parseFile(const char* fileName)
           unexpected(it);
         }
         FieldType ft;
-        ft.typeName=expect(it,ttIdent).value;
+        Token t=expect(it,ttIdent);
+        ft.typeName=t.value;
         ft.fk=fkType;
+        while((t=expect(it,(TokenTypeList(ttIdent),ttEoln))).tt!=ttEoln)
+        {
+          Property p;
+          p.name=it->value;
+          PropertyMap::iterator pit=properties.find(p.name);
+
+          if(pit==properties.end())
+          {
+            throw PropertyNotFoundException(it->value,files[it->file],it->line,it->col);
+          }
+
+          p=pit->second;
+          expect(it,(TokenTypeList(ttIdent),ttEqual,ttEoln));
+          if(it->tt==ttEqual)
+          {
+            PropertyField pf;
+            fillPropertyField(it,p,pf);
+            p.fields.push_back(pf);
+          }else
+          {
+            --it;
+          }
+          ft.properties.push_back(p);
+        };
         types.insert(FieldTypeMap::value_type(ft.typeName,ft));
       }break;
       case ttProperty:
@@ -404,19 +429,7 @@ void Parser::parseFile(const char* fileName)
           {
             PropertyField pf;
             //expect(it,(TokenTypeList(ttIntValue),ttStringValue,ttTrue,ttFalse,ttHexValue));
-            pf.name=p.name;
-            pf.pt=p.pt;
-            if(p.pt==ptBool)
-            {
-              pf.boolValue=expect(it,(TokenTypeList(ttTrue),ttFalse)).asBool();
-            }else if(p.pt==ptInt)
-            {
-              pf.intValue=expect(it,(TokenTypeList(ttIntValue),ttHexValue)).asInt();
-            }else//ptString
-            {
-              expect(it,ttStringValue);
-              pf.strValue=it->value;
-            }
+            fillPropertyField(it,p,pf);
             p.fields.push_back(pf);
           }
           if(cc==ccMessage)
@@ -445,16 +458,16 @@ void Parser::parseFile(const char* fileName)
         {
           throw DuplicateItemException("message",curMessage.name,files[it->file],it->line,it->col);
         }
-        expect(it,(TokenTypeList(ttIntValue),ttColon,ttEoln));
+        expect(it,(TokenTypeList(ttIntValue),ttHexValue,ttColon,ttEoln));
         if(it->tt==ttColon)
         {
           expect(it,ttIdent);
           getMessage(it->value);
           curMessage.parent=it->value;
-          expect(it,(TokenTypeList(ttIntValue),ttEoln));
+          expect(it,(TokenTypeList(ttIntValue),ttHexValue,ttEoln));
         }
 
-        if(it->tt==ttIntValue)
+        if(it->tt==ttIntValue || it->tt==ttHexValue)
         {
           curMessage.haveTag=true;
           curMessage.tag=it->asInt();
@@ -845,18 +858,21 @@ void Parser::parseFile(const char* fileName)
         {
           unexpected(it);
         }
-        curProperty.isDefault=true;
-        expect(it,(TokenTypeList(ttMessage),ttEnum,ttEoln));
+        curProperty.def=pdDefaultForField;
+        expect(it,(TokenTypeList(ttMessage),ttEnum,ttType,ttEoln));
         if(it->tt!=ttEoln && fsProp)
         {
           throw ParsingException("Unexpected message/enum property in fieldset "+curFieldSet.name,files[it->file],it->line,it->col);
         }
         if(it->tt==ttMessage)
         {
-          curProperty.isMessage=true;
+          curProperty.def=pdDefaultForMessage;
         }else if(it->tt==ttEnum)
         {
-          curProperty.isEnum=true;
+          curProperty.def=pdDefaultForEnum;
+        }else if(it->tt==ttType)
+        {
+          curProperty.def=pdDefaultForType;
         }
       }break;
       case ttEof:
@@ -898,35 +914,54 @@ void Parser::parseFile(const char* fileName)
   }
   for(PropertyMap::iterator pit=properties.begin();pit!=properties.end();pit++)
   {
-    if(pit->second.isDefault)
+    if(pit->second.def==pdNotDefault)
     {
-      for(MessageMap::iterator mit=messages.begin();mit!=messages.end();mit++)
+      continue;
+    }
+    for(MessageMap::iterator mit=messages.begin();mit!=messages.end();mit++)
+    {
+      if(pit->second.def==pdDefaultForMessage)
       {
-        if(pit->second.isMessage)
+        mit->second.properties.push_front(pit->second);
+      }else if(pit->second.def==pdDefaultForField)
+      {
+        for(FieldsVector::iterator fit=mit->second.fields.begin();fit!=mit->second.fields.end();fit++)
         {
-          mit->second.properties.push_front(pit->second);
-        }else
+          fit->properties.push_front(pit->second);
+        }
+      }else if(pit->second.def==pdDefaultForType)
+      {
+        for(FieldsVector::iterator fit=mit->second.fields.begin();fit!=mit->second.fields.end();fit++)
         {
-          for(FieldsVector::iterator fit=mit->second.fields.begin();fit!=mit->second.fields.end();fit++)
+          if(fit->ft.fk==fkType)
           {
-            fit->properties.push_front(pit->second);
+            fit->ft.properties.push_front(pit->second);
           }
         }
       }
-      if(pit->second.isEnum)
+    }
+    if(pit->second.def==pdDefaultForEnum)
+    {
+      for(EnumMap::iterator eit=enumMap.begin(),eend=enumMap.end();eit!=eend;++eit)
       {
-        for(EnumMap::iterator eit=enumMap.begin(),eend=enumMap.end();eit!=eend;++eit)
-        {
-          eit->second.properties.push_front(pit->second);
-        }
+        eit->second.properties.push_front(pit->second);
       }
-      if(!pit->second.isMessage && !pit->second.isEnum)
+    }
+    if(pit->second.def==pdDefaultForField || pit->second.def==pdDefaultForType)
+    {
+      for(FieldSetsList::iterator fsit=fieldsSets.begin(),fsend=fieldsSets.end();fsit!=fsend;++fsit)
       {
-        for(FieldSetsList::iterator fsit=fieldsSets.begin(),fsend=fieldsSets.end();fsit!=fsend;++fsit)
+        for(FieldsVector::iterator fit=fsit->fields.begin();fit!=fsit->fields.end();++fit)
         {
-          for(FieldsVector::iterator fit=fsit->fields.begin();fit!=fsit->fields.end();++fit)
+          if(pit->second.def==pdDefaultForField)
           {
             fit->properties.push_front(pit->second);
+          }else
+          {
+            if(fit->ft.fk==fkType)
+            {
+              fit->ft.properties.push_front(pit->second);
+            }
           }
         }
       }
@@ -936,7 +971,7 @@ void Parser::parseFile(const char* fileName)
   {
     for(PropertyMap::iterator pit=fsit->properties.begin();pit!=fsit->properties.end();++pit)
     {
-      if(!pit->second.isDefault)
+      if(pit->second.def!=pdDefaultForField)
       {
         continue;
       }
@@ -972,5 +1007,21 @@ void Parser::parseFile(const char* fileName)
   recursive--;
 }
 
+void Parser::fillPropertyField(TokensList::iterator& it,Property& p,PropertyField& pf)
+{
+  pf.name=p.name;
+  pf.pt=p.pt;
+  if(p.pt==ptBool)
+  {
+    pf.boolValue=expect(it,(TokenTypeList(ttTrue),ttFalse)).asBool();
+  }else if(p.pt==ptInt)
+  {
+    pf.intValue=expect(it,(TokenTypeList(ttIntValue),ttHexValue)).asInt();
+  }else//ptString
+  {
+    expect(it,ttStringValue);
+    pf.strValue=it->value;
+  }
+}
 
 }

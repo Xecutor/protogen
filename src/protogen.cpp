@@ -249,7 +249,24 @@ struct TemplateDataSource:protogen::DataSource{
         }
       }else
       {
-        fn.addVar("type",it->ft.typeName);
+        const FieldType& ft=it->ft;
+        fn.addVar("type",ft.typeName);
+        for(PropertyList::const_iterator pit=ft.properties.begin(),pend=ft.properties.end();pit!=pend;++pit)
+        {
+          for(PropertyFieldList::const_iterator pfit=pit->fields.begin(),pfend=pit->fields.end();pfit!=pfend;++pfit)
+          {
+            if(pfit->pt==ptBool)
+            {
+              fn.addBool(pfit->name,pfit->boolValue);
+            }else if(pfit->pt==ptInt)
+            {
+              fn.addVar(pfit->name,int2str(pfit->intValue));
+            }else
+            {
+              fn.addVar(pfit->name,pfit->strValue);
+            }
+          }
+        }
       }
       if(!it->fsname.empty())
       {
@@ -467,6 +484,15 @@ struct TemplateDataSource:protogen::DataSource{
   typedef std::map<std::string,int> MsgProps;
   MsgProps msgProps;
   MsgProps enumProps;*/
+
+  void dumpContext()
+  {
+    printf("Current context vars dump:\n");
+    for(VarMap::iterator it=top->vars.begin(),end=top->vars.end();it!=end;++it)
+    {
+      printf("%s='%s'\n",it->first.c_str(),it->second.c_str());
+    }
+  }
 };
 
 static bool split(std::string& source,char delim,std::string& tail)

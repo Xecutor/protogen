@@ -55,19 +55,6 @@ inline std::string TokenTypeToString(TokenType tt)
   return "unknown";
 }
 
-enum FieldKind{
-  fkType,
-  fkNested,
-  fkEnum
-};
-
-struct FieldType{
-  std::string typeName;
-  FieldKind fk;
-};
-
-typedef std::map<std::string,FieldType> FieldTypeMap;
-
 
 
 enum PropertyType{
@@ -86,29 +73,49 @@ struct PropertyField{
 
 typedef std::list<PropertyField> PropertyFieldList;
 
+enum PropertyDefault{
+  pdNotDefault,
+  pdDefaultForField,
+  pdDefaultForMessage,
+  pdDefaultForEnum,
+  pdDefaultForType
+};
+
 struct Property{
-  Property():pt(ptNone),isDefault(false),isMessage(false),isEnum(false)
+  Property():pt(ptNone),def(pdNotDefault)
   {
   }
   std::string name;
   PropertyType pt;
-  bool isDefault;
-  bool isMessage;
-  bool isEnum;
+  PropertyDefault def;
+
   PropertyFieldList fields;
   void clear()
   {
     name="";
     pt=ptNone;
-    isDefault=false;
-    isMessage=false;
-    isEnum=false;
+    def=pdNotDefault;
     fields.clear();
   }
 };
 
 typedef std::list<Property> PropertyList;
 typedef std::map<std::string,Property> PropertyMap;
+
+enum FieldKind{
+  fkType,
+  fkNested,
+  fkEnum
+};
+
+struct FieldType{
+  std::string typeName;
+  FieldKind fk;
+  PropertyList properties;
+};
+
+typedef std::map<std::string,FieldType> FieldTypeMap;
+
 
 struct Enum{
   std::string name;
@@ -402,6 +409,8 @@ protected:
   {
     throw ParsingException("Unexpected '"+TokenTypeToString(it->tt)+"' at",files[it->file],it->line,it->col);
   }
+
+  void fillPropertyField(TokensList::iterator& it,Property& p,PropertyField& pf);
 
 };
 
