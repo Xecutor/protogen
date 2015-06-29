@@ -10,7 +10,18 @@
 
 namespace protogen{
 
+class CustomErrorException:public std::exception{
+public:
+  CustomErrorException(const std::string& errorMsg):msg(errorMsg){}
+  ~CustomErrorException()throw(){}
+  const char* what()const throw()
+  {
+    return msg.c_str();
+  }
+protected:
+  std::string msg;
 
+};
 class CaseNotFoundException:public std::exception{
 public:
   CaseNotFoundException(const std::string& varName,const std::string& caseValue)
@@ -274,12 +285,17 @@ public:
               i++;
             }
           }break;
+          case opError:
+          {
+            throw CustomErrorException(ops[idx].value);
+          }break;
           case opEnd:continue;
         }
         idx++;
       }
     }catch(std::exception& e)
     {
+      ds.dumpContext();
       std::string msg="Exception during code generation:'";
       msg+=e.what();
       msg+="'";
@@ -302,6 +318,7 @@ protected:
     opPackEnd,
     opSetBool,
     opSetVar,
+    opError,
     opEnd
   };
   enum VarFlags{

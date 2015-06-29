@@ -21,7 +21,8 @@ enum TmplCmd{
   tcExpand,
   tcInclude,
   tcElse,
-  tcComment
+  tcComment,
+  tcError
 };
 
 struct CmdMapRec{
@@ -45,7 +46,8 @@ static CmdMapRec cmdMapArray[]=
   {"expand",tcExpand},
   {"include",tcInclude},
   {"else",tcElse},
-  {"comment",tcComment}
+  {"comment",tcComment},
+  {"error",tcError}
 };
 typedef std::map<std::string,TmplCmd> CmdMap;
 static CmdMap cMap;
@@ -409,8 +411,9 @@ void Template::Parse(FileReader& fr)
 {
   std::string curText;
   std::string curLine;
-  bool lineHaveVarCommand=false;
-  bool lineHaveCommand=false;
+  bool lineHasVarCommand=false;
+  bool lineHasStaticText=false;
+  bool lineHasCommand=false;
 
   bool macro=false;
   std::string macroName;
@@ -445,7 +448,7 @@ void Template::Parse(FileReader& fr)
         curLine+=c;
         continue;
       }
-      lineHaveCommand=true;
+      lineHasCommand=true;
       bool cmdEnd=false;
       if(c=='-')
       {
@@ -476,7 +479,7 @@ void Template::Parse(FileReader& fr)
       }
       if(it->second==tcVar)
       {
-        lineHaveVarCommand=true;
+        lineHasVarCommand=true;
       }
       if(macro && it->second!=tcMacro)
       {
@@ -877,6 +880,16 @@ void Template::Parse(FileReader& fr)
             throw TemplateParsingException(buf,fr.fileName,line,col);
           }
         }break;
+        case tcError:
+        {
+          Op op;
+          op.op=opError;
+          op.line=line;
+          op.col=col;
+          op.fidx=fr.file;
+          op.value=getContent(fr,"$",c);
+          ops.push_back(op);
+        }break;
         case tcComment:
           for(;;)
           {
@@ -906,17 +919,22 @@ void Template::Parse(FileReader& fr)
     {
       //printf("curline='%s'\n",curLine.c_str());
       trimLine(curLine);
-      if(curLine.length()!=0 || lineHaveVarCommand || !lineHaveCommand || macro)
+      if(curLine.length()!=0 || lineHasVarCommand || lineHasStaticText || !lineHasCommand || macro)
       {
         curText+=curLine;
         curText+=0x0a;
       }
       curLine="";
-      lineHaveVarCommand=false;
-      lineHaveCommand=false;
+      lineHasVarCommand=false;
+      lineHasStaticText=false;
+      lineHasCommand=false;
     }else
     {
       curLine+=c;
+      if(c!=' ' && c!='\t')
+      {
+        lineHasStaticText=true;
+      }
     }
   }
   if(curText.length() || curLine.length())
@@ -977,6 +995,7 @@ void Template::dump()
         dump();
         ops.swap(v);
       }break;
+      case opError:printf("error:%s\n",ops[i].value.c_str());break;
       case opEnd:printf("end\n");break;
     }
   }
