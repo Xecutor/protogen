@@ -283,7 +283,7 @@ struct TemplateDataSource:protogen::DataSource{
         {
           if(pfit->pt==ptString)
           {
-            setVar(pfit->name,pfit->strValue);
+            fn.addVar(pfit->name,pfit->strValue);
           }else if(pfit->pt==ptBool)
           {
             fn.addBool(pfit->name,pfit->boolValue);
