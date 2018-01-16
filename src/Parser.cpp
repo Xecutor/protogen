@@ -1,6 +1,5 @@
 #include "Parser.hpp"
 #include <stdio.h>
-#include <unistd.h>
 #include <stdexcept>
 #include <ctype.h>
 
