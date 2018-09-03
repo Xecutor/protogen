@@ -13,28 +13,6 @@ namespace protogen {
 
 typedef std::vector<std::string> StrVector;
 
-inline std::string findFile(const StrVector& searchPath, const std::string& fileName)
-{
-    if(fileName.length() && fileName[0] == '/')
-    {
-        return fileName;
-    }
-    struct stat st = {};
-    if(::stat(fileName.c_str(), &st) == 0)
-    {
-        return fileName;
-    }
-    for(const auto& it : searchPath)
-    {
-        std::string fullPath = it + fileName;
-        if(::stat(fullPath.c_str(), &st) == 0)
-        {
-            return fullPath;
-        }
-    }
-    return fileName;
-}
-
 
 struct FileReader {
 
@@ -105,6 +83,30 @@ struct FileReader {
     bool eof()
     {
         return pos >= fileSize;
+    }
+    static std::string findFile(const StrVector& searchPath, const std::string& fileName, bool searchInCurDir = true)
+    {
+        if(fileName.length() && fileName[0] == '/')
+        {
+            return fileName;
+        }
+        struct stat st = {};
+        if(searchInCurDir)
+        {
+            if(::stat(fileName.c_str(), &st) == 0)
+            {
+                return fileName;
+            }
+        }
+        for(const auto& it : searchPath)
+        {
+            std::string fullPath = it + fileName;
+            if(::stat(fullPath.c_str(), &st) == 0)
+            {
+                return fullPath;
+            }
+        }
+        return fileName;
     }
 };
 

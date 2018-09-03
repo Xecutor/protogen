@@ -4,20 +4,23 @@
 #include <exception>
 #include <kst/Format.hpp>
 
-namespace kst{
+namespace kst {
 
-class Exception:public std::exception{
+class Exception : public std::exception {
 public:
-  Exception(const char* argMsg):msg(argMsg)
-  {
-  }
-  ~Exception()throw(){}
-  const char* what()const throw()
-  {
-    return msg.c_str();
-  }
+    explicit Exception(const char* argMsg) : msg(argMsg)
+    {
+    }
+
+    ~Exception() override = default;
+
+    const char* what() const noexcept override
+    {
+        return msg.c_str();
+    }
+
 protected:
-  std::string msg;
+    std::string msg;
 };
 
 }

@@ -23,66 +23,7 @@ enum TokenType {
     ttProtocol, ttEnum, ttFileName, ttEoln, ttPackage, ttEof
 };
 
-inline std::string TokenTypeToString(TokenType tt)
-{
-    switch(tt)
-    {
-        case ttIdent:
-            return "identifier";
-        case ttInclude:
-            return "include";
-        case ttMessage:
-            return "message";
-        case ttFieldSet:
-            return "fieldset";
-        case ttEnd:
-            return "end";
-        case ttVersion:
-            return "version";
-        case ttVersionValue:
-            return "version value";
-        case ttType:
-            return "type";
-        case ttProperty:
-            return "property";
-        case ttBool:
-            return "bool";
-        case ttInt:
-            return "int";
-        case ttString:
-            return "string";
-        case ttIntValue:
-            return "int value";
-        case ttHexValue:
-            return "hex value";
-        case ttStringValue:
-            return "string value";
-        case ttDefault:
-            return "default";
-        case ttTrue:
-            return "true";
-        case ttFalse:
-            return "false";
-        case ttEqual:
-            return "equal";
-        case ttColon:
-            return "colon";
-        case ttProtocol:
-            return "protocol";
-        case ttEnum:
-            return "enum";
-        case ttEoln:
-            return "end of line";
-        case ttEof:
-            return "end of file";
-        case ttPackage:
-            return "package";
-        case ttFileName:
-            return "file name";
-    }
-    return "unknown";
-}
-
+std::string TokenTypeToString(TokenType tt);
 
 enum PropertyType {
     ptNone, ptBool, ptInt, ptString
@@ -330,6 +271,11 @@ public:
         searchPath.push_back(path);
     }
 
+    void disableSearchInCurDir()
+    {
+        searchInCurDir = false;
+    }
+
     void setVersionRequirement(bool value)
     {
         requireVersion = value;
@@ -340,6 +286,11 @@ public:
     const MessageMap& getMessages() const
     {
         return messages;
+    }
+
+    const StrVector& getAllFiles()const
+    {
+        return files;
     }
 
 protected:
@@ -392,6 +343,7 @@ protected:
     int recursive;
 
     StrVector searchPath;
+    bool searchInCurDir = true;
 
     void pushToken(const Token& t)
     {
@@ -415,33 +367,7 @@ protected:
         }
     };
 
-    const Token& expect(TokensList::iterator& it, const TokenTypeList& ttl)
-    {
-        it++;
-        const TokenTypeList* node = &ttl;
-        while(node && it != tokens.end())
-        {
-            if(it->tt == node->tt)
-            {
-                return *it;
-            }
-            node = node->prev;
-        }
-        node = &ttl;
-        std::string msg;
-        while(node)
-        {
-            msg += TokenTypeToString(node->tt);
-            node = node->prev;
-            if(node)
-            {
-                msg += ',';
-            }
-        }
-
-        throw ParsingException("Expected '" + msg + "' found '" + TokenTypeToString(it->tt) + "' at", files[it->file],
-                it->line, it->col);
-    }
+    const Token& expect(TokensList::iterator& it, const TokenTypeList& ttl);
 
     void unexpected(TokensList::iterator it)
     {

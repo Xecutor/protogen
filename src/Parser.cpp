@@ -11,6 +11,66 @@ static bool fileOrIdentChar(char c)
     return isalnum(c) || c == '_' || c == '.' || c == '/';
 }
 
+std::string TokenTypeToString(TokenType tt)
+{
+    switch(tt)
+    {
+        case ttIdent:
+            return "identifier";
+        case ttInclude:
+            return "include";
+        case ttMessage:
+            return "message";
+        case ttFieldSet:
+            return "fieldset";
+        case ttEnd:
+            return "end";
+        case ttVersion:
+            return "version";
+        case ttVersionValue:
+            return "version value";
+        case ttType:
+            return "type";
+        case ttProperty:
+            return "property";
+        case ttBool:
+            return "bool";
+        case ttInt:
+            return "int";
+        case ttString:
+            return "string";
+        case ttIntValue:
+            return "int value";
+        case ttHexValue:
+            return "hex value";
+        case ttStringValue:
+            return "string value";
+        case ttDefault:
+            return "default";
+        case ttTrue:
+            return "true";
+        case ttFalse:
+            return "false";
+        case ttEqual:
+            return "equal";
+        case ttColon:
+            return "colon";
+        case ttProtocol:
+            return "protocol";
+        case ttEnum:
+            return "enum";
+        case ttEoln:
+            return "end of line";
+        case ttEof:
+            return "end of file";
+        case ttPackage:
+            return "package";
+        case ttFileName:
+            return "file name";
+    }
+    return "unknown";
+}
+
 static std::map<std::string, TokenType> kwMap = {
         {"message",  ttMessage},
         {"fieldset", ttFieldSet},
@@ -41,9 +101,38 @@ TokenType findKeyword(const std::string& str)
     return it->second;
 }
 
+const Parser::Token& Parser::expect(TokensList::iterator& it, const TokenTypeList& ttl)
+{
+    it++;
+    const TokenTypeList* node = &ttl;
+    while(node && it != tokens.end())
+    {
+        if(it->tt == node->tt)
+        {
+            return *it;
+        }
+        node = node->prev;
+    }
+    node = &ttl;
+    std::string msg;
+    while(node)
+    {
+        msg += TokenTypeToString(node->tt);
+        node = node->prev;
+        if(node)
+        {
+            msg += ',';
+        }
+    }
+
+    throw ParsingException("Expected '" + msg + "' found '" + TokenTypeToString(it->tt) + "' at", files[it->file],
+            it->line, it->col);
+}
+
+
 void Parser::parseFile(const char* fileName)
 {
-    std::string foundFile = findFile(searchPath, fileName);
+    std::string foundFile = FileReader::findFile(searchPath, fileName, searchInCurDir);
     for(auto& file : files)
     {
         if(foundFile == file)

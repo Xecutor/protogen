@@ -7,7 +7,9 @@ set( PROTOGEN_SRC
   Parser.cpp
   Template.cpp
   protogen.cpp
-        Project.cpp)
+  Project.cpp
+  TemplateDataSource.cpp
+  Utility.cpp)
 
 add_executable(protogen ${PROTOGEN_SRC})
 

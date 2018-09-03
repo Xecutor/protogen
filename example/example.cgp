@@ -1,5 +1,7 @@
 source=protocol.def
 
+search.path=tmpl
+
 out.dir=out
 
 message.template=message.tmpl
