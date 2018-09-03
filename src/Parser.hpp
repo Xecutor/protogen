@@ -1,3 +1,5 @@
+#include <utility>
+
 #ifndef __PROTOGEN_PARSER_HPP__
 #define __PROTOGEN_PARSER_HPP__
 
@@ -12,405 +14,441 @@
 #include "Exceptions.hpp"
 #include "FileReader.hpp"
 
-namespace protogen{
+namespace protogen {
 
-enum TokenType{
-  ttIdent, ttInclude, ttMessage, ttFieldSet, ttEnd,ttVersion,
-  ttVersionValue,ttType,ttProperty,ttBool,ttInt,ttString,
-  ttIntValue,ttHexValue,ttStringValue,ttDefault,ttTrue,ttFalse, ttEqual,ttColon,
-  ttProtocol,ttEnum,ttFileName,ttEoln,ttPackage,ttEof
+enum TokenType {
+    ttIdent, ttInclude, ttMessage, ttFieldSet, ttEnd, ttVersion,
+    ttVersionValue, ttType, ttProperty, ttBool, ttInt, ttString,
+    ttIntValue, ttHexValue, ttStringValue, ttDefault, ttTrue, ttFalse, ttEqual, ttColon,
+    ttProtocol, ttEnum, ttFileName, ttEoln, ttPackage, ttEof
 };
 
 inline std::string TokenTypeToString(TokenType tt)
 {
-  switch(tt)
-  {
-    case ttIdent:return "identifier";
-    case ttInclude:return "include";
-    case ttMessage:return "message";
-    case ttFieldSet:return "fieldset";
-    case ttEnd:return "end";
-    case ttVersion:return "version";
-    case ttVersionValue:return "version value";
-    case ttType:return "type";
-    case ttProperty:return "property";
-    case ttBool:return "bool";
-    case ttInt:return "int";
-    case ttString:return "string";
-    case ttIntValue:return "int value";
-    case ttHexValue:return "hex value";
-    case ttStringValue:return "string value";
-    case ttDefault:return "default";
-    case ttTrue:return "true";
-    case ttFalse:return "false";
-    case ttEqual:return "equal";
-    case ttColon:return "colon";
-    case ttProtocol:return "protocol";
-    case ttEnum:return "enum";
-    case ttEoln:return "end of line";
-    case ttEof:return "end of file";
-    case ttPackage:return "package";
-    case ttFileName:return "file name";
-  }
-  return "unknown";
+    switch(tt)
+    {
+        case ttIdent:
+            return "identifier";
+        case ttInclude:
+            return "include";
+        case ttMessage:
+            return "message";
+        case ttFieldSet:
+            return "fieldset";
+        case ttEnd:
+            return "end";
+        case ttVersion:
+            return "version";
+        case ttVersionValue:
+            return "version value";
+        case ttType:
+            return "type";
+        case ttProperty:
+            return "property";
+        case ttBool:
+            return "bool";
+        case ttInt:
+            return "int";
+        case ttString:
+            return "string";
+        case ttIntValue:
+            return "int value";
+        case ttHexValue:
+            return "hex value";
+        case ttStringValue:
+            return "string value";
+        case ttDefault:
+            return "default";
+        case ttTrue:
+            return "true";
+        case ttFalse:
+            return "false";
+        case ttEqual:
+            return "equal";
+        case ttColon:
+            return "colon";
+        case ttProtocol:
+            return "protocol";
+        case ttEnum:
+            return "enum";
+        case ttEoln:
+            return "end of line";
+        case ttEof:
+            return "end of file";
+        case ttPackage:
+            return "package";
+        case ttFileName:
+            return "file name";
+    }
+    return "unknown";
 }
 
 
-
-enum PropertyType{
-  ptNone,ptBool,ptInt,ptString
+enum PropertyType {
+    ptNone, ptBool, ptInt, ptString
 };
 
 
-
-struct PropertyField{
-  PropertyType pt;
-  std::string name;
-  bool boolValue;
-  int intValue;
-  std::string strValue;
+struct PropertyField {
+    PropertyType pt;
+    std::string name;
+    bool boolValue;
+    int intValue;
+    std::string strValue;
 };
 
 typedef std::list<PropertyField> PropertyFieldList;
 
-enum PropertyDefault{
-  pdNotDefault,
-  pdDefaultForField,
-  pdDefaultForMessage,
-  pdDefaultForEnum,
-  pdDefaultForType
+enum PropertyDefault {
+    pdNotDefault,
+    pdDefaultForField,
+    pdDefaultForMessage,
+    pdDefaultForEnum,
+    pdDefaultForType
 };
 
-struct Property{
-  Property():pt(ptNone),def(pdNotDefault)
-  {
-  }
-  std::string name;
-  PropertyType pt;
-  PropertyDefault def;
+struct Property {
+    Property() : pt(ptNone), def(pdNotDefault)
+    {
+    }
 
-  PropertyFieldList fields;
-  void clear()
-  {
-    name="";
-    pt=ptNone;
-    def=pdNotDefault;
-    fields.clear();
-  }
+    std::string name;
+    PropertyType pt;
+    PropertyDefault def;
+
+    PropertyFieldList fields;
+
+    void clear()
+    {
+        name = "";
+        pt = ptNone;
+        def = pdNotDefault;
+        fields.clear();
+    }
 };
 
 typedef std::list<Property> PropertyList;
-typedef std::map<std::string,Property> PropertyMap;
+typedef std::map<std::string, Property> PropertyMap;
 
-enum FieldKind{
-  fkType,
-  fkNested,
-  fkEnum
+enum FieldKind {
+    fkType,
+    fkNested,
+    fkEnum
 };
 
-struct FieldType{
-  std::string typeName;
-  FieldKind fk;
-  PropertyList properties;
+struct FieldType {
+    std::string typeName;
+    FieldKind fk;
+    PropertyList properties;
 };
 
-typedef std::map<std::string,FieldType> FieldTypeMap;
+typedef std::map<std::string, FieldType> FieldTypeMap;
 
 
-struct Enum{
-  std::string name;
-  std::string typeName;
-  std::string pkg;
-  PropertyList properties;
-  enum ValueType{
-    vtInt,vtString
-  };
-  ValueType vt;
-  struct EnumValue{
+struct Enum {
     std::string name;
-    std::string strVal;
-    int intVal;
-  };
-  std::vector<EnumValue> values;
-  void clear()
-  {
-    values.clear();
-  }
+    std::string typeName;
+    std::string pkg;
+    PropertyList properties;
+    enum ValueType {
+        vtInt, vtString
+    };
+    ValueType vt;
+    struct EnumValue {
+        std::string name;
+        std::string strVal;
+        int intVal;
+    };
+    std::vector<EnumValue> values;
+
+    void clear()
+    {
+        values.clear();
+    }
 };
 
-typedef std::map<std::string,Enum> EnumMap;
+typedef std::map<std::string, Enum> EnumMap;
 
 
+struct Field {
 
-struct Field{
-  Field():tag(-1)
-  {
+    FieldType ft;
+    std::string name;
+    std::string fsname;
+    int tag = -1;
+    PropertyList properties;
 
-  }
-  FieldType ft;
-  std::string name;
-  std::string fsname;
-  int tag;
-  PropertyList properties;
-  void clear()
-  {
-    name="";
-    tag=0;
-    properties.clear();
-  }
+    void clear()
+    {
+        name = "";
+        tag = -1;
+        properties.clear();
+    }
 };
 
 typedef std::vector<Field> FieldsVector;
 
-struct FieldSet{
-  std::string name;
-  std::string pkg;
-  FieldsVector fields;
-  PropertyMap properties;
-  bool used;
+struct FieldSet {
+    std::string name;
+    std::string pkg;
+    FieldsVector fields;
+    PropertyMap properties;
+    bool used = false;
 
-  FieldSet():used(false){}
+    typedef std::map<std::string, FieldsVector::iterator> FieldsMap;
+    FieldsMap fieldsMap;
 
-  typedef std::map<std::string,FieldsVector::iterator> FieldsMap;
-  FieldsMap fieldsMap;
-  void clear()
-  {
-    name="";
-    fields.clear();
-    fieldsMap.clear();
-  }
-  void finish()
-  {
-    for(FieldsVector::iterator it=fields.begin(),end=fields.end();it!=end;++it)
+    void clear()
     {
-      fieldsMap[it->name]=it;
+        name = "";
+        fields.clear();
+        fieldsMap.clear();
     }
-  }
+
+    void finish()
+    {
+        for(auto it = fields.begin(), end = fields.end(); it != end; ++it)
+        {
+            fieldsMap[it->name] = it;
+        }
+    }
 };
 
 typedef std::list<FieldSet> FieldSetsList;
 
-struct Message{
-  std::string name;
-  std::string pkg;
-  std::string parent;
-  uint8_t majorVersion;
-  uint8_t minorVersion;
-  FieldsVector fields;
-  PropertyList properties;
-  int tag;
-  bool haveTag;
+struct Message {
+    std::string name;
+    std::string pkg;
+    std::string parent;
+    uint16_t majorVersion = 1;
+    uint16_t minorVersion = 0;
+    FieldsVector fields;
+    PropertyList properties;
+    int tag = 0;
+    bool haveTag = false;
 
-  Message():majorVersion(1),minorVersion(0),tag(0),haveTag(false)
-  {
-
-  }
-
-  void clear()
-  {
-    name="";
-    parent="";
-    haveTag=false;
-    fields.clear();
-    properties.clear();
-  }
+    void clear()
+    {
+        name = "";
+        parent = "";
+        haveTag = false;
+        fields.clear();
+        properties.clear();
+    }
 };
 
-struct Protocol{
-  std::string name;
-  std::string pkg;
-  struct MessageRecord{
-    std::string msgName;
-    PropertyList props;
-  };
-  typedef std::vector<MessageRecord> MessagesVector;
-  MessagesVector messages;
-  void clear()
-  {
-    messages.clear();
-  }
+struct Protocol {
+    std::string name;
+    std::string pkg;
+    struct MessageRecord {
+        std::string msgName;
+        PropertyList props;
+    };
+    typedef std::vector<MessageRecord> MessagesVector;
+    MessagesVector messages;
+
+    void clear()
+    {
+        messages.clear();
+    }
 };
 
 
-typedef std::map<std::string,Protocol> ProtocolsMap;
+typedef std::map<std::string, Protocol> ProtocolsMap;
 
 
-class Parser{
+class Parser {
 public:
-  Parser()
-  {
-    parsePos=tokens.end();
-    recursive=0;
-    requireVersion=false;
-  }
-  void parseFile(const char* fileName);
-
-  const ProtocolsMap& getProtocols()const
-  {
-    return protocols;
-  }
-  const EnumMap& getEnums()const
-  {
-    return enumMap;
-  }
-
-  const FieldSetsList& getFieldSets()const
-  {
-    return fieldsSets;
-  }
-
-  const FieldSet& getFieldset(const std::string& name)
-  {
-    for(protogen::FieldSetsList::iterator fit=fieldsSets.begin(),fend=fieldsSets.end();fit!=fend;++fit)
+    Parser()
     {
-      if(fit->name==name)
-      {
-        return *fit;
-      }
+        parsePos = tokens.end();
+        recursive = 0;
+        requireVersion = false;
     }
-    throw FieldSetNotFoundException(name,"",0,0);
-  }
 
-  const Enum& getEnum(const std::string& enumName)const
-  {
-    EnumMap::const_iterator it=enumMap.find(enumName);
-    if(it==enumMap.end())
-    {
-      throw TypeNotFoundException(enumName,"",0,0);
-    }
-    return it->second;
-  }
+    void parseFile(const char* fileName);
 
-  const Protocol& getProtocol(const std::string& protoName)const
-  {
-    ProtocolsMap::const_iterator it=protocols.find(protoName);
-    if(it==protocols.end())
+    const ProtocolsMap& getProtocols() const
     {
-      throw ProtocolNotFoundException(protoName,"",0,0);
+        return protocols;
     }
-    return it->second;
-  }
-  const Message& getMessage(const std::string& name)const
-  {
-    MessageMap::const_iterator it=messages.find(name);
-    if(it==messages.end())
+
+    const EnumMap& getEnums() const
     {
-      throw MessageNotFoundException(name,"",0,0);
+        return enumMap;
     }
-    return it->second;
-  }
-  void addSearchPath(const std::string& path)
-  {
-    searchPath.push_back(path);
-  }
-  void setVersionRequirement(bool value)
-  {
-    requireVersion=value;
-  }
-  typedef std::map<std::string,Message> MessageMap;
-  const MessageMap& getMessages()const
-  {
-    return messages;
-  }
+
+    const FieldSetsList& getFieldSets() const
+    {
+        return fieldsSets;
+    }
+
+    const FieldSet& getFieldset(const std::string& name)
+    {
+        for(auto& fieldsSet : fieldsSets)
+        {
+            if(fieldsSet.name == name)
+            {
+                return fieldsSet;
+            }
+        }
+        throw FieldSetNotFoundException(name, "", 0, 0);
+    }
+
+    const Enum& getEnum(const std::string& enumName) const
+    {
+        auto it = enumMap.find(enumName);
+        if(it == enumMap.end())
+        {
+            throw TypeNotFoundException(enumName, "", 0, 0);
+        }
+        return it->second;
+    }
+
+    const Protocol& getProtocol(const std::string& protoName) const
+    {
+        auto it = protocols.find(protoName);
+        if(it == protocols.end())
+        {
+            throw ProtocolNotFoundException(protoName, "", 0, 0);
+        }
+        return it->second;
+    }
+
+    const Message& getMessage(const std::string& name) const
+    {
+        auto it = messages.find(name);
+        if(it == messages.end())
+        {
+            throw MessageNotFoundException(name, "", 0, 0);
+        }
+        return it->second;
+    }
+
+    void addSearchPath(const std::string& path)
+    {
+        searchPath.push_back(path);
+    }
+
+    void setVersionRequirement(bool value)
+    {
+        requireVersion = value;
+    }
+
+    typedef std::map<std::string, Message> MessageMap;
+
+    const MessageMap& getMessages() const
+    {
+        return messages;
+    }
+
 protected:
-  std::set<std::string> fsNames;
-  FieldSetsList fieldsSets;
-  MessageMap messages;
-  ProtocolsMap protocols;
-  FieldTypeMap types;
-  PropertyMap properties;
-  EnumMap enumMap;
-  bool requireVersion;
-  struct Token{
-    Token():tt(ttEof),file(0),line(0),col(0)
-    {
-    }
-    Token(TokenType argTt,int argFile,int argLine,int argCol,const std::string& argValue=""):
-      tt(argTt),file(argFile),line(argLine),col(argCol),value(argValue)
-    {
-    }
-    TokenType tt;
-    int file;
-    int line;
-    int col;
-    std::string value;
-    int asInt()const
-    {
-      if(tt==ttIntValue)
-      {
-        return atoi(value.c_str());
-      }
-      int rv;
-      sscanf(value.c_str(),"0x%x",&rv);
-      return rv;
-    }
-    bool asBool()const
-    {
-      return tt==ttTrue?true:false;
-    }
-  };
+    std::set<std::string> fsNames;
+    FieldSetsList fieldsSets;
+    MessageMap messages;
+    ProtocolsMap protocols;
+    FieldTypeMap types;
+    PropertyMap properties;
+    EnumMap enumMap;
+    bool requireVersion;
 
-  StrVector files;
-  typedef std::list<Token> TokensList;
-  TokensList tokens;
-  TokensList::iterator parsePos;
-  int recursive;
+    struct Token {
+        Token() : tt(ttEof), file(0), line(0), col(0)
+        {
+        }
 
-  StrVector searchPath;
+        Token(TokenType argTt, int argFile, int argLine, int argCol, std::string argValue = "") :
+                tt(argTt), file(argFile), line(argLine), col(argCol), value(std::move(argValue))
+        {
+        }
 
-  void pushToken(const Token& t)
-  {
-    parsePos=tokens.insert(parsePos,t);
-    parsePos++;
-  }
+        TokenType tt;
+        int file;
+        int line;
+        int col;
+        std::string value;
 
-  struct TokenTypeList{
-    TokenTypeList(TokenType argTt):tt(argTt),prev(0)
-    {
-    }
-    TokenType tt;
-    const TokenTypeList* prev;
+        int asInt() const
+        {
+            if(tt == ttIntValue)
+            {
+                return atoi(value.c_str());
+            }
+            int rv;
+            sscanf(value.c_str(), "0x%x", &rv);
+            return rv;
+        }
 
-    TokenTypeList operator,(TokenType argTt)const
+        bool asBool() const
+        {
+            return tt == ttTrue;
+        }
+    };
+
+    StrVector files;
+    typedef std::list<Token> TokensList;
+    TokensList tokens;
+    TokensList::iterator parsePos;
+    int recursive;
+
+    StrVector searchPath;
+
+    void pushToken(const Token& t)
     {
-      TokenTypeList node(argTt);
-      node.prev=this;
-      return node;
-    }
-  };
-  const Token& expect(TokensList::iterator& it,const TokenTypeList& ttl)
-  {
-    it++;
-    const TokenTypeList* node=&ttl;
-    while(node && it!=tokens.end())
-    {
-      if(it->tt==node->tt)
-      {
-        return *it;
-      }
-      node=node->prev;
-    }
-    node=&ttl;
-    std::string msg;
-    while(node)
-    {
-      msg+=TokenTypeToString(node->tt);
-      node=node->prev;
-      if(node)
-      {
-        msg+=',';
-      }
+        parsePos = tokens.insert(parsePos, t);
+        parsePos++;
     }
 
-    throw ParsingException("Expected '"+msg+"' found '"+TokenTypeToString(it->tt)+"' at",files[it->file],it->line,it->col);
-  }
+    struct TokenTypeList {
+        TokenTypeList(TokenType argTt) : tt(argTt), prev(0)
+        {
+        }
 
-  void unexpected(TokensList::iterator it)
-  {
-    throw ParsingException("Unexpected '"+TokenTypeToString(it->tt)+"' at",files[it->file],it->line,it->col);
-  }
+        TokenType tt;
+        const TokenTypeList* prev;
 
-  void fillPropertyField(TokensList::iterator& it,Property& p,PropertyField& pf);
+        TokenTypeList operator,(TokenType argTt) const
+        {
+            TokenTypeList node(argTt);
+            node.prev = this;
+            return node;
+        }
+    };
+
+    const Token& expect(TokensList::iterator& it, const TokenTypeList& ttl)
+    {
+        it++;
+        const TokenTypeList* node = &ttl;
+        while(node && it != tokens.end())
+        {
+            if(it->tt == node->tt)
+            {
+                return *it;
+            }
+            node = node->prev;
+        }
+        node = &ttl;
+        std::string msg;
+        while(node)
+        {
+            msg += TokenTypeToString(node->tt);
+            node = node->prev;
+            if(node)
+            {
+                msg += ',';
+            }
+        }
+
+        throw ParsingException("Expected '" + msg + "' found '" + TokenTypeToString(it->tt) + "' at", files[it->file],
+                it->line, it->col);
+    }
+
+    void unexpected(TokensList::iterator it)
+    {
+        throw ParsingException("Unexpected '" + TokenTypeToString(it->tt) + "' at", files[it->file], it->line, it->col);
+    }
+
+    void fillPropertyField(TokensList::iterator& it, Property& p, PropertyField& pf);
 
 };
 

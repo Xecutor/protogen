@@ -9,292 +9,310 @@
 #include "FileReader.hpp"
 #include "DataSource.hpp"
 
-const char* sccs_version="@(#) protogen 1.7.3 " __DATE__;
+const char* sccs_version = "@(#) protogen 1.7.3 " __DATE__;
 
 static std::string int2str(int val)
 {
-  char buf[32];
-  sprintf(buf,"%d",val);
-  return buf;
+    char buf[32];
+    sprintf(buf, "%d", val);
+    return buf;
 }
 
 using protogen::StrVector;
 
-StrVector splitString(const std::string& str,const std::string& div)
+StrVector splitString(const std::string& str, const std::string& div)
 {
-  StrVector rv;
-  std::string::size_type pos,lastPos=0;
-  while((pos=str.find(div,lastPos))!=std::string::npos)
-  {
-    rv.push_back(str.substr(lastPos,pos-lastPos));
-    lastPos=pos+div.length();
-  }
-  rv.push_back(str.substr(lastPos));
-  return rv;
+    StrVector rv;
+    std::string::size_type pos, lastPos = 0;
+    while((pos = str.find(div, lastPos)) != std::string::npos)
+    {
+        rv.push_back(str.substr(lastPos, pos - lastPos));
+        lastPos = pos + div.length();
+    }
+    rv.push_back(str.substr(lastPos));
+    return rv;
 }
 
-struct TemplateDataSource:protogen::DataSource{
+struct TemplateDataSource : protogen::DataSource {
 
-  void fillPackage(const char* varName,const std::string& pkg)
-  {
-    if(pkg.empty())return;
-    setVar(varName,pkg);
-
-    Loop& pkgLoop=createLoop(varName);
-    const StrVector& pkgArr=splitString(pkg,".");
-    for(StrVector::const_iterator it=pkgArr.begin(),end=pkgArr.end();it!=end;++it)
+    void fillPackage(const char* varName, const std::string& pkg)
     {
-      pkgLoop.newItem().addVar("package.part",*it);
-    }
-  }
-
-  void initForMessage(protogen::Parser& p,const std::string& messageName)
-  {
-    using namespace protogen;
-
-    const Message& msg=p.getMessage(messageName);
-    setVar("message.name",messageName);
-    setVar("message.versionMajor",int2str(msg.majorVersion));
-    setVar("message.versionMinor",int2str(msg.minorVersion));
-    fillPackage("message.package",msg.pkg);
-
-    setBool("message.havetag",msg.haveTag);
-    if(msg.haveTag)
-    {
-      setVar("message.tag",int2str(msg.tag));
-    }
-
-    setBool("message.haveparent",!msg.parent.empty());
-    if(!msg.parent.empty())
-    {
-      setVar("message.parent",msg.parent);
-      const Message& pmsg=p.getMessage(msg.parent);
-      if(!pmsg.pkg.empty())
-      {
-        //varMap["message.parentpackage"]=pmsg.pkg;
-        fillPackage("message.parentpackage",pmsg.pkg);
-      }
-    }
-
-
-    Loop& msgFields=createLoop("field");
-    fillFields(p,msgFields,msg.fields);
-    {
-      const Message* pmsg=msg.parent.empty()?0:&p.getMessage(msg.parent);
-      Loop& msgParentFields=createLoop("parent.field");
-      msgParentFields.name="field";
-      while(pmsg)
-      {
-        fillFields(p,msgParentFields,pmsg->fields);
-        pmsg=pmsg->parent.empty()?0:&p.getMessage(pmsg->parent);
-      }
-    }
-
-    for(PropertyList::const_iterator pit=msg.properties.begin();pit!=msg.properties.end();pit++)
-    {
-      for(PropertyFieldList::const_iterator pfit=pit->fields.begin();pfit!=pit->fields.end();pfit++)
-      {
-        std::string n="message.";
-        n+=pfit->name;
-        if(pfit->pt==ptString)
+        if(pkg.empty())
         {
-          setVar(n,pfit->strValue);
-        }else if(pfit->pt==ptBool)
-        {
-          setBool(n,pfit->boolValue);
-        }else
-        {
-          setVar(n,int2str(pfit->intValue));
+            return;
         }
-      }
+        setVar(varName, pkg);
+
+        Loop& pkgLoop = createLoop(varName);
+        const StrVector& pkgArr = splitString(pkg, ".");
+        for(const auto& it : pkgArr)
+        {
+            pkgLoop.newItem().addVar("package.part", it);
+        }
     }
 
-  }
-
-  void initForFieldSet(protogen::Parser& p,const protogen::FieldSet& fs)
-  {
-    setVar("fieldset.name",fs.name);
-    fillPackage("fieldset.package",fs.pkg);
-    fillFields(p,createLoop("field"),fs.fields);
-  }
-
-
-  void initForProtocol(const protogen::Parser& p,const std::string& protoName)
-  {
-    using namespace protogen;
-    const Protocol& proto=p.getProtocol(protoName);
-    setVar("protocol.name",protoName);
-    fillPackage("protocol.package",proto.pkg);
-    typedef protogen::Protocol::MessagesVector MsgVector;
-    Loop& ld=createLoop("message");
-    for(MsgVector::const_iterator it=proto.messages.begin();it!=proto.messages.end();it++)
+    void initForMessage(protogen::Parser& p, const std::string& messageName)
     {
-      const Message& msg=p.getMessage(it->msgName);
-      Namespace& mn=ld.newItem();
-      mn.addVar("message.name",msg.name);
-      mn.addBool("message.havetag",msg.haveTag);
-      mn.addBool("message.haveparent",!msg.parent.empty());
-      if(!msg.parent.empty())
-      {
-        mn.addVar("message.parent",msg.parent);
-      }
+        using namespace protogen;
 
-      if(msg.haveTag)
-      {
-        mn.addVar("message.tag",int2str(msg.tag));
-      }
-      for(PropertyList::const_iterator pit=msg.properties.begin();pit!=msg.properties.end();pit++)
-      {
-        for(PropertyFieldList::const_iterator pfit=pit->fields.begin();pfit!=pit->fields.end();pfit++)
-        {
-          if(pfit->pt==ptBool)
-          {
-            mn.addBool("message."+pfit->name,pfit->boolValue);
-          }else if(pfit->pt==ptString)
-          {
-            mn.addVar("message."+pfit->name,pfit->strValue);
-          }else if(pfit->pt==ptInt)
-          {
-            mn.addVar("message."+pfit->name,int2str(pfit->intValue));
-          }
-        }
-      }
-      for(PropertyList::const_iterator pit=it->props.begin();pit!=it->props.end();pit++)
-      {
-        for(PropertyFieldList::const_iterator pfit=pit->fields.begin();pfit!=pit->fields.end();pfit++)
-        {
-          if(pfit->pt==ptBool)
-          {
-            mn.addBool("message."+pfit->name,pfit->boolValue);
-          }else if(pfit->pt==ptString)
-          {
-            mn.addVar("message."+pfit->name,pfit->strValue);
-          }else if(pfit->pt==ptInt)
-          {
-            mn.addVar("message."+pfit->name,int2str(pfit->intValue));
-          }
-        }
-      }
-    }
-  }
+        const Message& msg = p.getMessage(messageName);
+        setVar("message.name", messageName);
+        setVar("message.versionMajor", int2str(msg.majorVersion));
+        setVar("message.versionMinor", int2str(msg.minorVersion));
+        fillPackage("message.package", msg.pkg);
 
-  void initForEnum(protogen::Parser& p,const std::string& enumName)
-  {
-    using namespace protogen;
-    const Enum& e=p.getEnum(enumName);
-    setVar("enum.name",e.name);
-    setVar("enum.type",e.typeName);
-    Loop& ld=createLoop("item");
-    for(std::vector<Enum::EnumValue>::const_iterator it=e.values.begin();it!=e.values.end();++it)
-    {
-      Namespace& en=ld.newItem();
-      en.addVar("item.name",it->name);
-      if(e.vt==Enum::vtString)
-      {
-        en.addVar("item.value",it->strVal);
-      }else
-      {
-        en.addVar("item.value",int2str(it->intVal));
-      }
-    }
+        setBool("message.havetag", msg.haveTag);
+        if(msg.haveTag)
+        {
+            setVar("message.tag", int2str(msg.tag));
+        }
 
-    for(PropertyList::const_iterator pit=e.properties.begin();pit!=e.properties.end();pit++)
-    {
-      for(PropertyFieldList::const_iterator pfit=pit->fields.begin();pfit!=pit->fields.end();pfit++)
-      {
-        std::string n="enum."+pfit->name;
-        if(pfit->pt==ptBool)
+        setBool("message.haveparent", !msg.parent.empty());
+        if(!msg.parent.empty())
         {
-          setBool(n,pfit->boolValue);
-        }else if(pfit->pt==ptString)
-        {
-          setVar(n,pfit->strValue);
-        }else if(pfit->pt==ptInt)
-        {
-          setVar(n,int2str(pfit->intValue));
-        }
-      }
-    }
-  }
-
-  void fillFields(protogen::Parser& p,Loop& ld,const protogen::FieldsVector& fields)
-  {
-    using namespace protogen;
-    FieldsVector::const_iterator beg,it,end;
-    beg=it=fields.begin();
-    end=fields.end();
-    for(;it!=end;it++)
-    {
-      Namespace& fn=ld.newItem();
-      fn.addVar("name",it->name);
-      fn.addVar("tag",int2str(it->tag));
-      if(it->ft.fk==fkNested)
-      {
-        fn.addVar("type","nested");
-        fn.addVar("typename",it->ft.typeName);
-        const Message& fmsg=p.getMessage(it->ft.typeName);
-        if(!fmsg.pkg.empty())
-        {
-          fn.addVar("typepackage",fmsg.pkg);
-        }
-      }else if(it->ft.fk==fkEnum)
-      {
-        fn.addVar("type","enum");
-        fn.addVar("typename",it->ft.typeName);
-        const Enum& fenum=p.getEnum(it->ft.typeName);
-        fn.addVar("valuetype",fenum.typeName);
-        if(!fenum.pkg.empty())
-        {
-          fn.addVar("typepackage",fenum.pkg);
-        }
-      }else
-      {
-        const FieldType& ft=it->ft;
-        fn.addVar("type",ft.typeName);
-        for(PropertyList::const_iterator pit=ft.properties.begin(),pend=ft.properties.end();pit!=pend;++pit)
-        {
-          for(PropertyFieldList::const_iterator pfit=pit->fields.begin(),pfend=pit->fields.end();pfit!=pfend;++pfit)
-          {
-            if(pfit->pt==ptBool)
+            setVar("message.parent", msg.parent);
+            const Message& pmsg = p.getMessage(msg.parent);
+            if(!pmsg.pkg.empty())
             {
-              fn.addBool(pfit->name,pfit->boolValue);
-            }else if(pfit->pt==ptInt)
-            {
-              fn.addVar(pfit->name,int2str(pfit->intValue));
-            }else
-            {
-              fn.addVar(pfit->name,pfit->strValue);
+                //varMap["message.parentpackage"]=pmsg.pkg;
+                fillPackage("message.parentpackage", pmsg.pkg);
             }
-          }
         }
-      }
-      if(!it->fsname.empty())
-      {
-        fn.addVar("fieldset",it->fsname);
-        const FieldSet& fs=p.getFieldset(it->fsname);
-        if(!fs.pkg.empty())
+
+
+        Loop& msgFields = createLoop("field");
+        fillFields(p, msgFields, msg.fields);
         {
-          fn.addVar("package",fs.pkg);
+            const Message* pmsg = msg.parent.empty() ? nullptr : &p.getMessage(msg.parent);
+            Loop& msgParentFields = createLoop("parent.field");
+            msgParentFields.name = "field";
+            while(pmsg)
+            {
+                fillFields(p, msgParentFields, pmsg->fields);
+                pmsg = pmsg->parent.empty() ? nullptr : &p.getMessage(pmsg->parent);
+            }
         }
-      }
-      for(PropertyList::const_iterator pit=it->properties.begin();pit!=it->properties.end();pit++)
-      {
-        for(PropertyFieldList::const_iterator pfit=pit->fields.begin();pfit!=pit->fields.end();pfit++)
+
+        for(const auto& prop : msg.properties)
         {
-          if(pfit->pt==ptString)
-          {
-            fn.addVar(pfit->name,pfit->strValue);
-          }else if(pfit->pt==ptBool)
-          {
-            fn.addBool(pfit->name,pfit->boolValue);
-          }else
-          {
-            fn.addVar(pfit->name,int2str(pfit->intValue));
-          }
+            for(const auto& field : prop.fields)
+            {
+                std::string n = "message.";
+                n += field.name;
+                if(field.pt == ptString)
+                {
+                    setVar(n, field.strValue);
+                }
+                else if(field.pt == ptBool)
+                {
+                    setBool(n, field.boolValue);
+                }
+                else
+                {
+                    setVar(n, int2str(field.intValue));
+                }
+            }
         }
-      }
+
     }
-  }
+
+    void initForFieldSet(protogen::Parser& p, const protogen::FieldSet& fs)
+    {
+        setVar("fieldset.name", fs.name);
+        fillPackage("fieldset.package", fs.pkg);
+        fillFields(p, createLoop("field"), fs.fields);
+    }
+
+
+    void initForProtocol(const protogen::Parser& p, const std::string& protoName)
+    {
+        using namespace protogen;
+        const Protocol& proto = p.getProtocol(protoName);
+        setVar("protocol.name", protoName);
+        fillPackage("protocol.package", proto.pkg);
+        typedef protogen::Protocol::MessagesVector MsgVector;
+        Loop& ld = createLoop("message");
+        for(const auto& message : proto.messages)
+        {
+            const Message& msg = p.getMessage(message.msgName);
+            Namespace& mn = ld.newItem();
+            mn.addVar("message.name", msg.name);
+            mn.addBool("message.havetag", msg.haveTag);
+            mn.addBool("message.haveparent", !msg.parent.empty());
+            if(!msg.parent.empty())
+            {
+                mn.addVar("message.parent", msg.parent);
+            }
+
+            if(msg.haveTag)
+            {
+                mn.addVar("message.tag", int2str(msg.tag));
+            }
+            for(const auto& prop : msg.properties)
+            {
+                for(const auto& field : prop.fields)
+                {
+                    if(field.pt == ptBool)
+                    {
+                        mn.addBool("message." + field.name, field.boolValue);
+                    }
+                    else if(field.pt == ptString)
+                    {
+                        mn.addVar("message." + field.name, field.strValue);
+                    }
+                    else if(field.pt == ptInt)
+                    {
+                        mn.addVar("message." + field.name, int2str(field.intValue));
+                    }
+                }
+            }
+            for(const auto& prop : message.props)
+            {
+                for(const auto& field : prop.fields)
+                {
+                    if(field.pt == ptBool)
+                    {
+                        mn.addBool("message." + field.name, field.boolValue);
+                    }
+                    else if(field.pt == ptString)
+                    {
+                        mn.addVar("message." + field.name, field.strValue);
+                    }
+                    else if(field.pt == ptInt)
+                    {
+                        mn.addVar("message." + field.name, int2str(field.intValue));
+                    }
+                }
+            }
+        }
+    }
+
+    void initForEnum(protogen::Parser& p, const std::string& enumName)
+    {
+        using namespace protogen;
+        const Enum& e = p.getEnum(enumName);
+        setVar("enum.name", e.name);
+        setVar("enum.type", e.typeName);
+        Loop& ld = createLoop("item");
+        for(auto& val : e.values)
+        {
+            Namespace& en = ld.newItem();
+            en.addVar("item.name", val.name);
+            if(e.vt == Enum::vtString)
+            {
+                en.addVar("item.value", val.strVal);
+            }
+            else
+            {
+                en.addVar("item.value", int2str(val.intVal));
+            }
+        }
+
+        for(const auto& prop : e.properties)
+        {
+            for(const auto& field : prop.fields)
+            {
+                std::string n = "enum." + field.name;
+                if(field.pt == ptBool)
+                {
+                    setBool(n, field.boolValue);
+                }
+                else if(field.pt == ptString)
+                {
+                    setVar(n, field.strValue);
+                }
+                else if(field.pt == ptInt)
+                {
+                    setVar(n, int2str(field.intValue));
+                }
+            }
+        }
+    }
+
+    void fillFields(protogen::Parser& p, Loop& ld, const protogen::FieldsVector& fields)
+    {
+        using namespace protogen;
+        FieldsVector::const_iterator it, end;
+        //beg = it = fields.begin();
+        end = fields.end();
+        for(; it != end; it++)
+        {
+            Namespace& fn = ld.newItem();
+            fn.addVar("name", it->name);
+            fn.addVar("tag", int2str(it->tag));
+            if(it->ft.fk == fkNested)
+            {
+                fn.addVar("type", "nested");
+                fn.addVar("typename", it->ft.typeName);
+                const Message& fmsg = p.getMessage(it->ft.typeName);
+                if(!fmsg.pkg.empty())
+                {
+                    fn.addVar("typepackage", fmsg.pkg);
+                }
+            }
+            else if(it->ft.fk == fkEnum)
+            {
+                fn.addVar("type", "enum");
+                fn.addVar("typename", it->ft.typeName);
+                const Enum& fenum = p.getEnum(it->ft.typeName);
+                fn.addVar("valuetype", fenum.typeName);
+                if(!fenum.pkg.empty())
+                {
+                    fn.addVar("typepackage", fenum.pkg);
+                }
+            }
+            else
+            {
+                const FieldType& ft = it->ft;
+                fn.addVar("type", ft.typeName);
+                for(const auto& prop : ft.properties)
+                {
+                    for(const auto& field : prop.fields)
+                    {
+                        if(field.pt == ptBool)
+                        {
+                            fn.addBool(field.name, field.boolValue);
+                        }
+                        else if(field.pt == ptInt)
+                        {
+                            fn.addVar(field.name, int2str(field.intValue));
+                        }
+                        else
+                        {
+                            fn.addVar(field.name, field.strValue);
+                        }
+                    }
+                }
+            }
+            if(!it->fsname.empty())
+            {
+                fn.addVar("fieldset", it->fsname);
+                const FieldSet& fs = p.getFieldset(it->fsname);
+                if(!fs.pkg.empty())
+                {
+                    fn.addVar("package", fs.pkg);
+                }
+            }
+            for(const auto& prop2 : it->properties)
+            {
+                for(const auto& field : prop2.fields)
+                {
+                    if(field.pt == ptString)
+                    {
+                        fn.addVar(field.name, field.strValue);
+                    }
+                    else if(field.pt == ptBool)
+                    {
+                        fn.addBool(field.name, field.boolValue);
+                    }
+                    else
+                    {
+                        fn.addVar(field.name, int2str(field.intValue));
+                    }
+                }
+            }
+        }
+    }
 
 /*
   void setLoopVar(const std::string& loopName,size_t idx,const std::string& varName,const std::string& varValue)
@@ -485,783 +503,831 @@ struct TemplateDataSource:protogen::DataSource{
   MsgProps msgProps;
   MsgProps enumProps;*/
 
-  void dumpContext()
-  {
-    printf("Current context vars dump:\n");
-    for(VarMap::iterator it=top->vars.begin(),end=top->vars.end();it!=end;++it)
+    void dumpContext()
     {
-      printf("%s='%s'\n",it->first.c_str(),it->second.c_str());
+        printf("Current context vars dump:\n");
+        for(auto& var : top->vars)
+        {
+            printf("%s='%s'\n", var.first.c_str(), var.second.c_str());
+        }
     }
-  }
 };
 
-static bool split(std::string& source,char delim,std::string& tail)
+static bool split(std::string& source, char delim, std::string& tail)
 {
-  std::string::size_type pos=source.find(delim);
-  if(pos==std::string::npos)
-  {
-    return false;
-  }
-  tail=source.substr(pos+1);
-  source.erase(pos);
-  return true;
+    std::string::size_type pos = source.find(delim);
+    if(pos == std::string::npos)
+    {
+        return false;
+    }
+    tail = source.substr(pos + 1);
+    source.erase(pos);
+    return true;
 }
 
 
-void setOptValue(StrVector& sv,const std::string& opt,const std::string& ext,const std::string& val)
+void setOptValue(StrVector& sv, const std::string& opt, const std::string& ext, const std::string& val)
 {
-  if(ext.length()==0)
-  {
-    sv.push_back(val);
-    return;
-  }
-  //printf("ext=%s\n",ext.c_str());
-  if(ext==":")
-  {
-    sv.clear();
-    sv.push_back(val);
-    return;
-  }
-  size_t idx=atoi(ext.c_str())-1;
-  if(idx>sv.size())
-  {
-    throw std::runtime_error("Invalid index '"+ext+"' for option '"+opt+"'");
-  }
-  sv.resize(idx+1);
-  sv[idx]=val;
+    if(ext.length() == 0)
+    {
+        sv.push_back(val);
+        return;
+    }
+    //printf("ext=%s\n",ext.c_str());
+    if(ext == ":")
+    {
+        sv.clear();
+        sv.push_back(val);
+        return;
+    }
+    size_t idx = atoi(ext.c_str()) - 1;
+    if(idx > sv.size())
+    {
+        throw std::runtime_error("Invalid index '" + ext + "' for option '" + opt + "'");
+    }
+    sv.resize(idx + 1);
+    sv[idx] = val;
 }
 
-class FileFinder:public protogen::IFileFinder{
+class FileFinder : public protogen::IFileFinder {
 public:
-  FileFinder(StrVector& argSearchPath):searchPath(argSearchPath)
-  {
+    explicit FileFinder(StrVector& argSearchPath) : searchPath(argSearchPath)
+    {
 
-  }
-  std::string findFile(const std::string& fileName)
-  {
-    return protogen::findFile(searchPath,fileName);
-  }
+    }
+
+    std::string findFile(const std::string& fileName) override
+    {
+        return protogen::findFile(searchPath, fileName);
+    }
+
 protected:
-  StrVector& searchPath;
+    StrVector& searchPath;
 };
 
-bool pkgMatch(const std::string& pkgName,const std::string& pkgMask)
+bool pkgMatch(const std::string& pkgName, const std::string& pkgMask)
 {
-  if(*pkgMask.rbegin()=='*')
-  {
-    return pkgName.substr(0,pkgMask.length()-1)==pkgMask.substr(0,pkgMask.length()-1);
-  }else
-  {
-    return pkgName==pkgMask;
-  }
+    if(*pkgMask.rbegin() == '*')
+    {
+        return pkgName.substr(0, pkgMask.length() - 1) == pkgMask.substr(0, pkgMask.length() - 1);
+    }
+    else
+    {
+        return pkgName == pkgMask;
+    }
 }
 
-int main(int argc,char* argv[])
+int main(int argc, char* argv[])
 {
-  protogen::Parser p;
-  TemplateDataSource ds;
-  try
-  {
-    if(argc==1)
+    protogen::Parser p;
+    TemplateDataSource ds;
+    try
     {
-      printf("Usage: protogen [--options] projectfile [--options]\n");
-      return 0;
-    }
-    std::string projectFileName;
-    StrVector protoOutDir;
-    StrVector msgOutDir;
-    StrVector enumOutDir;
-    StrVector fsOutDir;
-    StrVector optionsOverride;
-    for(int i=1;i<argc;i++)
-    {
-      std::string option=argv[i];
-      if(option.substr(0,2)=="--")
-      {
-        optionsOverride.push_back(option.substr(2));
-        continue;
-      }
-      if(projectFileName.length())
-      {
-        printf("Only one project file expected in command line\n");
-        return 1;
-      }
-      projectFileName=argv[i];
-    }
-    if(!projectFileName.length())
-    {
-      printf("Expected project file name in command line\n");
-      return 1;
-    }
-
-    typedef std::vector<bool> BoolVector;
-    typedef std::map<std::string,BoolVector> IdxOptions;
-    typedef std::map<std::string,StrVector> IdxData;
-    IdxOptions idxOptions;
-    IdxData idxData;
-
-    StrVector sources;
-
-    StrVector protoToGen;
-    StrVector msgToGen;
-    StrVector enumToGen;
-    StrVector fsToGen;
-    StrVector pkgToGen;
-
-    StrVector msgTemplates;
-    StrVector protoTemplates;
-    StrVector enumTemplates;
-    StrVector fsTemplates;
-    StrVector protoExtensions;
-    StrVector msgExtensions;
-    StrVector enumExtensions;
-    StrVector fsExtensions;
-    StrVector protoPrefix;
-    StrVector protoSuffix;
-    StrVector msgPrefix;
-    StrVector msgSuffix;
-    StrVector enumPrefix;
-    StrVector enumSuffix;
-    StrVector fsPrefix;
-    StrVector fsSuffix;
-
-    StrVector searchPaths;
-
-    {
-      const char* envsp=getenv("PROTOGEN_SEARCH_PATH");
-      if(envsp)
-      {
-        std::string sp=envsp;
-        if(*sp.rbegin()!='/')
+        if(argc == 1)
         {
-          sp+='/';
+            printf("Usage: protogen [--options] projectfile [--options]\n");
+            return 0;
         }
-        searchPaths.push_back(sp);
-      }
-    }
+        std::string projectFileName;
+        StrVector protoOutDir;
+        StrVector msgOutDir;
+        StrVector enumOutDir;
+        StrVector fsOutDir;
+        StrVector optionsOverride;
+        for(int i = 1; i < argc; i++)
+        {
+            std::string option = argv[i];
+            if(option.substr(0, 2) == "--")
+            {
+                optionsOverride.push_back(option.substr(2));
+                continue;
+            }
+            if(projectFileName.length())
+            {
+                printf("Only one project file expected in command line\n");
+                return 1;
+            }
+            projectFileName = argv[i];
+        }
+        if(!projectFileName.length())
+        {
+            printf("Expected project file name in command line\n");
+            return 1;
+        }
 
-    FileFinder ff(searchPaths);
+        typedef std::vector<bool> BoolVector;
+        typedef std::map<std::string, BoolVector> IdxOptions;
+        typedef std::map<std::string, StrVector> IdxData;
+        IdxOptions idxOptions;
+        IdxData idxData;
 
-    bool reqMsgVersion=false;
-    bool debugMode=false;
-    bool verbose=false;
-    bool genFieldsets=false;
+        StrVector sources;
 
-    FILE* f=fopen(projectFileName.c_str(),"rt");
-    if(!f)
-    {
-      printf("Failed to open %s for reading\n",projectFileName.c_str());
-      return 1;
-    }
-    char buf[1024];
-    StrVector projectSrc;
-    while(fgets(buf,sizeof(buf),f))
-    {
-      projectSrc.push_back(buf);
-    }
+        StrVector protoToGen;
+        StrVector msgToGen;
+        StrVector enumToGen;
+        StrVector fsToGen;
+        StrVector pkgToGen;
 
-    projectSrc.insert(projectSrc.end(),optionsOverride.begin(),optionsOverride.end());
+        StrVector msgTemplates;
+        StrVector protoTemplates;
+        StrVector enumTemplates;
+        StrVector fsTemplates;
+        StrVector protoExtensions;
+        StrVector msgExtensions;
+        StrVector enumExtensions;
+        StrVector fsExtensions;
+        StrVector protoPrefix;
+        StrVector protoSuffix;
+        StrVector msgPrefix;
+        StrVector msgSuffix;
+        StrVector enumPrefix;
+        StrVector enumSuffix;
+        StrVector fsPrefix;
+        StrVector fsSuffix;
 
-    for(StrVector::iterator it=projectSrc.begin();it!=projectSrc.end();it++)
-    {
-      std::string line=*it;
-      while(line.length() && isspace(*line.rbegin()))
-      {
-        line.erase(line.rbegin().base()-1);
-      }
-      while(line.length() && isspace(line[0]))
-      {
-        line.erase(0,1);
-      }
-      if(line.length()==0)
-      {
-        continue;
-      }
-      if(line[0]=='#')
-      {
-        continue;
-      }
-      std::string::size_type pos=line.find('=');
-      if(pos==std::string::npos)
-      {
-        printf("Unrecognized line:'%s'\n",line.c_str());
-        return 1;
-      }
-      std::string name;
-      std::string value;
-      std::string ext;
-      name=line.substr(0,pos);
-      value=line.substr(pos+1);
-      split(name,':',ext);
-      if(name=="message.template")
-      {
-        setOptValue(msgTemplates,name,ext,value);
-      }else if(name=="protocol.template")
-      {
-        setOptValue(protoTemplates,name,ext,value);
-      }else if(name=="enum.template")
-      {
-        setOptValue(enumTemplates,name,ext,value);
-      }else if(name=="fieldset.template")
-      {
-        setOptValue(fsTemplates,name,ext,value);
-      }else if(name=="out.extension")
-      {
-        setOptValue(protoExtensions,name,ext,value);
-        setOptValue(msgExtensions,name,ext,value);
-        setOptValue(enumExtensions,name,ext,value);
-        setOptValue(fsExtensions,name,ext,value);
-      }else if(name=="out.protocol.extension")
-      {
-        setOptValue(protoExtensions,name,ext,value);
-      }else if(name=="out.message.extension")
-      {
-        setOptValue(msgExtensions,name,ext,value);
-      }else if(name=="out.enum.extension")
-      {
-        setOptValue(enumExtensions,name,ext,value);
-      }else if(name=="out.fieldset.extension")
-      {
-        setOptValue(fsExtensions,name,ext,value);
-      }else if(name=="out.protocol.prefix")
-      {
-        setOptValue(protoPrefix,name,ext,value);
-      }else if(name=="out.protocol.suffix")
-      {
-        setOptValue(protoSuffix,name,ext,value);
-      }else if(name=="out.message.prefix")
-      {
-        setOptValue(msgPrefix,name,ext,value);
-      }else if(name=="out.message.suffix")
-      {
-        setOptValue(msgSuffix,name,ext,value);
-      }else if(name=="out.enum.prefix")
-      {
-        setOptValue(enumPrefix,name,ext,value);
-      }else if(name=="out.enum.suffix")
-      {
-        setOptValue(enumSuffix,name,ext,value);
-      }else if(name=="out.fieldset.prefix")
-      {
-        setOptValue(fsPrefix,name,ext,value);
-      }else if(name=="out.fieldset.suffix")
-      {
-        setOptValue(fsSuffix,name,ext,value);
-      }else if(name=="option")
-      {
-        if(value!="true" && value!="false")
-        {
-          printf("option value can be 'true' or 'false'\n");
-          return 1;
-        }
-        ds.setBool(ext,value=="true");
-      }else if(name=="idxoption")
-      {
-        if(value!="true" && value!="false")
-        {
-          printf("option value can be 'true' or 'false'\n");
-          return 1;
-        }
-        std::string var=ext;
-        if(split(var,':',ext))
-        {
-          int idx=atoi(ext.c_str())-1;
-          idxOptions[var].resize(idx+1);
-          idxOptions[var][idx]=value=="true";
-        }else
-        {
-          idxOptions[var].push_back(value=="true");
-        }
-      }else if(name=="data")
-      {
-        std::string var=ext;
-        if(split(var,':',ext))
-        {
-          std::string loopVar;
-          if(split(ext,':',loopVar))
-          {
-            protogen::DataSource::Loop& lp=ds.createLoop(var,false);
-            lp.getItem(atoi(ext.c_str())-1).addVar(loopVar,value);
-            //ds.setLoopVar(var,atoi(ext.c_str())-1,loopVar,value);
-          }else
-          {
-            protogen::DataSource::Loop& lp=ds.createLoop(var,false);
-            lp.getItem(atoi(ext.c_str())-1).addVar(var,value);
-            //ds.setLoopVar(var,atoi(ext.c_str())-1,var,value);
-          }
-        }else
-        {
-          ds.setVar(var,value);
-        }
-      }else if(name=="idxdata")
-      {
-        std::string var=ext;
-        if(split(var,':',ext))
-        {
-          int idx=atoi(ext.c_str())-1;
-          idxData[var].resize(idx+1);
-          idxData[var][idx]=value;
-        }else
-        {
-          idxData[ext].push_back(value);
-        }
-      }else if(name=="source")
-      {
-        setOptValue(sources,name,ext,value);
-      }else if(name=="generate.protocol")
-      {
-        setOptValue(protoToGen,name,ext,value);
-      }else if(name=="generate.message")
-      {
-        setOptValue(msgToGen,name,ext,value);
-      }else if(name=="generate.enum")
-      {
-        setOptValue(enumToGen,name,ext,value);
-      }else if(name=="generate.package")
-      {
-        setOptValue(pkgToGen,name,ext,value);
-      }else if(name=="generate.fieldset")
-      {
-        setOptValue(fsToGen,name,ext,value);
-      }else if(name=="search.path")
-      {
-        setOptValue(searchPaths,name,ext,value);
-      }else if(name=="out.dir")
-      {
-        std::string dir=value;
-        if(dir.length() && *dir.rbegin()!='/')
-        {
-          dir+='/';
-        }
-        setOptValue(protoOutDir,name,ext,dir);
-        setOptValue(msgOutDir,name,ext,dir);
-        setOptValue(enumOutDir,name,ext,dir);
-        setOptValue(fsOutDir,name,ext,dir);
-      }else if(name=="out.protocol.dir")
-      {
-        std::string dir=value;
-        if(dir.length() && *dir.rbegin()!='/')
-        {
-          dir+='/';
-        }
-        setOptValue(protoOutDir,name,ext,dir);
-      }else if(name=="out.message.dir")
-      {
-        std::string dir=value;
-        if(dir.length() && *dir.rbegin()!='/')
-        {
-          dir+='/';
-        }
-        setOptValue(msgOutDir,name,ext,dir);
-      }else if(name=="out.enum.dir")
-      {
-        std::string dir=value;
-        if(dir.length() && *dir.rbegin()!='/')
-        {
-          dir+='/';
-        }
-        setOptValue(enumOutDir,name,ext,dir);
-      }else if(name=="out.fieldset.dir")
-      {
-        std::string dir=value;
-        if(dir.length() && *dir.rbegin()!='/')
-        {
-          dir+='/';
-        }
-        setOptValue(fsOutDir,name,ext,dir);
-      }else if(name=="requireMessageVersion")
-      {
-        reqMsgVersion=value=="true";
-      }else if(name=="debugMode")
-      {
-        debugMode=value=="true";
-      }else if(name=="verbose")
-      {
-        verbose=value=="true";
-      }else if(name=="genFieldsets")
-      {
-        genFieldsets=value=="true";
-      }else
-      {
-        printf("Unrecognized line:'%s'\n",line.c_str());
-      }
-    }
+        StrVector searchPaths;
 
-    if(sources.empty())
-    {
-      printf("No sources to load\n");
-      return 1;
-    }
-
-    {
-      StrVector* outDir[4]={&protoOutDir,&msgOutDir,&enumOutDir,&fsOutDir};
-      StrVector* ext[4]={&protoExtensions,&msgExtensions,&enumExtensions,&fsExtensions};
-      for(int j=0;j<4;j++)
-      {
-        if(outDir[j]->empty())
         {
-          for(size_t i=0;i<ext[j]->size();i++)
-          {
-            outDir[j]->push_back("./");
-          }
+            const char* envsp = getenv("PROTOGEN_SEARCH_PATH");
+            if(envsp)
+            {
+                std::string sp = envsp;
+                if(*sp.rbegin() != '/')
+                {
+                    sp += '/';
+                }
+                searchPaths.push_back(sp);
+            }
         }
-        if(outDir[j]->size()==1 && ext[j]->size()>1)
+
+        FileFinder ff(searchPaths);
+
+        bool reqMsgVersion = false;
+        bool debugMode = false;
+        bool verbose = false;
+        bool genFieldsets = false;
+
+        FILE* f = fopen(projectFileName.c_str(), "rt");
+        if(!f)
         {
-          for(size_t i=1;i<ext[j]->size();i++)
-          {
-            outDir[j]->push_back((*outDir[j])[0]);
-          }
+            printf("Failed to open %s for reading\n", projectFileName.c_str());
+            return 1;
         }
-      }
-    }
+        char buf[1024];
+        StrVector projectSrc;
+        while(fgets(buf, sizeof(buf), f))
+        {
+            projectSrc.push_back(buf);
+        }
 
-    p.setVersionRequirement(reqMsgVersion);
+        projectSrc.insert(projectSrc.end(), optionsOverride.begin(), optionsOverride.end());
 
-    for(StrVector::iterator it=searchPaths.begin();it!=searchPaths.end();it++)
-    {
-      if(!it->empty() && *it->rbegin()!='/')
-      {
-        (*it)+='/';
-      }
-      p.addSearchPath(*it);
-    }
+        for(auto line : projectSrc)
+        {
+            while(line.length() && isspace(*line.rbegin()))
+            {
+                line.erase(line.rbegin().base() - 1);
+            }
+            while(line.length() && isspace(line[0]))
+            {
+                line.erase(0, 1);
+            }
+            if(line.length() == 0)
+            {
+                continue;
+            }
+            if(line[0] == '#')
+            {
+                continue;
+            }
+            std::string::size_type pos = line.find('=');
+            if(pos == std::string::npos)
+            {
+                printf("Unrecognized line:'%s'\n", line.c_str());
+                return 1;
+            }
+            std::string name;
+            std::string value;
+            std::string ext;
+            name = line.substr(0, pos);
+            value = line.substr(pos + 1);
+            split(name, ':', ext);
+            if(name == "message.template")
+            {
+                setOptValue(msgTemplates, name, ext, value);
+            }
+            else if(name == "protocol.template")
+            {
+                setOptValue(protoTemplates, name, ext, value);
+            }
+            else if(name == "enum.template")
+            {
+                setOptValue(enumTemplates, name, ext, value);
+            }
+            else if(name == "fieldset.template")
+            {
+                setOptValue(fsTemplates, name, ext, value);
+            }
+            else if(name == "out.extension")
+            {
+                setOptValue(protoExtensions, name, ext, value);
+                setOptValue(msgExtensions, name, ext, value);
+                setOptValue(enumExtensions, name, ext, value);
+                setOptValue(fsExtensions, name, ext, value);
+            }
+            else if(name == "out.protocol.extension")
+            {
+                setOptValue(protoExtensions, name, ext, value);
+            }
+            else if(name == "out.message.extension")
+            {
+                setOptValue(msgExtensions, name, ext, value);
+            }
+            else if(name == "out.enum.extension")
+            {
+                setOptValue(enumExtensions, name, ext, value);
+            }
+            else if(name == "out.fieldset.extension")
+            {
+                setOptValue(fsExtensions, name, ext, value);
+            }
+            else if(name == "out.protocol.prefix")
+            {
+                setOptValue(protoPrefix, name, ext, value);
+            }
+            else if(name == "out.protocol.suffix")
+            {
+                setOptValue(protoSuffix, name, ext, value);
+            }
+            else if(name == "out.message.prefix")
+            {
+                setOptValue(msgPrefix, name, ext, value);
+            }
+            else if(name == "out.message.suffix")
+            {
+                setOptValue(msgSuffix, name, ext, value);
+            }
+            else if(name == "out.enum.prefix")
+            {
+                setOptValue(enumPrefix, name, ext, value);
+            }
+            else if(name == "out.enum.suffix")
+            {
+                setOptValue(enumSuffix, name, ext, value);
+            }
+            else if(name == "out.fieldset.prefix")
+            {
+                setOptValue(fsPrefix, name, ext, value);
+            }
+            else if(name == "out.fieldset.suffix")
+            {
+                setOptValue(fsSuffix, name, ext, value);
+            }
+            else if(name == "option")
+            {
+                if(value != "true" && value != "false")
+                {
+                    printf("option value can be 'true' or 'false'\n");
+                    return 1;
+                }
+                ds.setBool(ext, value == "true");
+            }
+            else if(name == "idxoption")
+            {
+                if(value != "true" && value != "false")
+                {
+                    printf("option value can be 'true' or 'false'\n");
+                    return 1;
+                }
+                std::string var = ext;
+                if(split(var, ':', ext))
+                {
+                    int idx = atoi(ext.c_str()) - 1;
+                    idxOptions[var].resize(idx + 1);
+                    idxOptions[var][idx] = value == "true";
+                }
+                else
+                {
+                    idxOptions[var].push_back(value == "true");
+                }
+            }
+            else if(name == "data")
+            {
+                std::string var = ext;
+                if(split(var, ':', ext))
+                {
+                    std::string loopVar;
+                    if(split(ext, ':', loopVar))
+                    {
+                        protogen::DataSource::Loop& lp = ds.createLoop(var, false);
+                        lp.getItem(atoi(ext.c_str()) - 1).addVar(loopVar, value);
+                        //ds.setLoopVar(var,atoi(ext.c_str())-1,loopVar,value);
+                    }
+                    else
+                    {
+                        protogen::DataSource::Loop& lp = ds.createLoop(var, false);
+                        lp.getItem(atoi(ext.c_str()) - 1).addVar(var, value);
+                        //ds.setLoopVar(var,atoi(ext.c_str())-1,var,value);
+                    }
+                }
+                else
+                {
+                    ds.setVar(var, value);
+                }
+            }
+            else if(name == "idxdata")
+            {
+                std::string var = ext;
+                if(split(var, ':', ext))
+                {
+                    int idx = atoi(ext.c_str()) - 1;
+                    idxData[var].resize(idx + 1);
+                    idxData[var][idx] = value;
+                }
+                else
+                {
+                    idxData[ext].push_back(value);
+                }
+            }
+            else if(name == "source")
+            {
+                setOptValue(sources, name, ext, value);
+            }
+            else if(name == "generate.protocol")
+            {
+                setOptValue(protoToGen, name, ext, value);
+            }
+            else if(name == "generate.message")
+            {
+                setOptValue(msgToGen, name, ext, value);
+            }
+            else if(name == "generate.enum")
+            {
+                setOptValue(enumToGen, name, ext, value);
+            }
+            else if(name == "generate.package")
+            {
+                setOptValue(pkgToGen, name, ext, value);
+            }
+            else if(name == "generate.fieldset")
+            {
+                setOptValue(fsToGen, name, ext, value);
+            }
+            else if(name == "search.path")
+            {
+                setOptValue(searchPaths, name, ext, value);
+            }
+            else if(name == "out.dir")
+            {
+                std::string dir = value;
+                if(dir.length() && *dir.rbegin() != '/')
+                {
+                    dir += '/';
+                }
+                setOptValue(protoOutDir, name, ext, dir);
+                setOptValue(msgOutDir, name, ext, dir);
+                setOptValue(enumOutDir, name, ext, dir);
+                setOptValue(fsOutDir, name, ext, dir);
+            }
+            else if(name == "out.protocol.dir")
+            {
+                std::string dir = value;
+                if(dir.length() && *dir.rbegin() != '/')
+                {
+                    dir += '/';
+                }
+                setOptValue(protoOutDir, name, ext, dir);
+            }
+            else if(name == "out.message.dir")
+            {
+                std::string dir = value;
+                if(dir.length() && *dir.rbegin() != '/')
+                {
+                    dir += '/';
+                }
+                setOptValue(msgOutDir, name, ext, dir);
+            }
+            else if(name == "out.enum.dir")
+            {
+                std::string dir = value;
+                if(dir.length() && *dir.rbegin() != '/')
+                {
+                    dir += '/';
+                }
+                setOptValue(enumOutDir, name, ext, dir);
+            }
+            else if(name == "out.fieldset.dir")
+            {
+                std::string dir = value;
+                if(dir.length() && *dir.rbegin() != '/')
+                {
+                    dir += '/';
+                }
+                setOptValue(fsOutDir, name, ext, dir);
+            }
+            else if(name == "requireMessageVersion")
+            {
+                reqMsgVersion = value == "true";
+            }
+            else if(name == "debugMode")
+            {
+                debugMode = value == "true";
+            }
+            else if(name == "verbose")
+            {
+                verbose = value == "true";
+            }
+            else if(name == "genFieldsets")
+            {
+                genFieldsets = value == "true";
+            }
+            else
+            {
+                printf("Unrecognized line:'%s'\n", line.c_str());
+            }
+        }
+
+        if(sources.empty())
+        {
+            printf("No sources to load\n");
+            return 1;
+        }
+
+        {
+            StrVector* outDir[4] = {&protoOutDir, &msgOutDir, &enumOutDir, &fsOutDir};
+            StrVector* ext[4] = {&protoExtensions, &msgExtensions, &enumExtensions, &fsExtensions};
+            for(int j = 0; j < 4; j++)
+            {
+                if(outDir[j]->empty())
+                {
+                    for(size_t i = 0; i < ext[j]->size(); i++)
+                    {
+                        outDir[j]->push_back("./");
+                    }
+                }
+                if(outDir[j]->size() == 1 && ext[j]->size() > 1)
+                {
+                    for(size_t i = 1; i < ext[j]->size(); i++)
+                    {
+                        outDir[j]->push_back((*outDir[j])[0]);
+                    }
+                }
+            }
+        }
+
+        p.setVersionRequirement(reqMsgVersion);
+
+        for(auto& searchPath : searchPaths)
+        {
+            if(!searchPath.empty() && *searchPath.rbegin() != '/')
+            {
+                searchPath += '/';
+            }
+            p.addSearchPath(searchPath);
+        }
 
 #define VPRINTF(...) if(verbose)printf(__VA_ARGS__)
 
-    for(StrVector::iterator it=sources.begin();it!=sources.end();it++)
-    {
-      VPRINTF("Parsing %s\n",it->c_str());
-      p.parseFile(it->c_str());
-    }
-
-    for(StrVector::iterator it=pkgToGen.begin(),end=pkgToGen.end();it!=end;++it)
-    {
-      const protogen::ProtocolsMap& proto=p.getProtocols();
-      for(protogen::ProtocolsMap::const_iterator pit=proto.begin();pit!=proto.end();pit++)
-      {
-        if(pkgMatch(pit->second.pkg,*it))
+        for(auto it = sources.begin(); it != sources.end(); it++)
         {
-          VPRINTF("Add protocol %s to generation list via package\n",pit->first.c_str());
-          protoToGen.push_back(pit->first);
-        }
-      }
-      const protogen::Parser::MessageMap& msgs=p.getMessages();
-      for(protogen::Parser::MessageMap::const_iterator mit=msgs.begin(),mend=msgs.end();mit!=mend;++mit)
-      {
-        if(pkgMatch(mit->second.pkg,*it))
-        {
-          VPRINTF("Add message %s to generation list via package\n",mit->first.c_str());
-          msgToGen.push_back(mit->first);
-        }
-      }
-      const protogen::EnumMap& enums=p.getEnums();
-      for(protogen::EnumMap::const_iterator eit=enums.begin(),eend=enums.end();eit!=eend;++eit)
-      {
-        if(pkgMatch(eit->second.pkg,*it))
-        {
-          VPRINTF("Add enum %s to generation list via package\n",eit->first.c_str());
-          enumToGen.push_back(eit->first);
-        }
-      }
-      const protogen::FieldSetsList& fs=p.getFieldSets();
-      for(protogen::FieldSetsList::const_iterator fit=fs.begin(),fend=fs.end();fit!=fend;++fit)
-      {
-        if(pkgMatch(fit->pkg,*it))
-        {
-          VPRINTF("Add fieldset %s to generation list via package\n",fit->name.c_str());
-          fsToGen.push_back(fit->name);
-        }
-      }
-
-    }
-
-    if(protoToGen.empty() && pkgToGen.empty())
-    {
-      const protogen::ProtocolsMap& proto=p.getProtocols();
-      for(protogen::ProtocolsMap::const_iterator it=proto.begin();it!=proto.end();it++)
-      {
-        VPRINTF("Add protocol %s to generation list by default\n",it->first.c_str());
-        protoToGen.push_back(it->first);
-      }
-    }
-
-    {
-      std::sort(protoToGen.begin(),protoToGen.end());
-      StrVector::iterator end=std::unique(protoToGen.begin(),protoToGen.end());
-      protoToGen.erase(end,protoToGen.end());
-    }
-
-    for(StrVector::iterator it=protoToGen.begin();it!=protoToGen.end();it++)
-    {
-      ds.initForProtocol(p,*it);
-      for(size_t idx=0;idx<protoTemplates.size();idx++)
-      {
-        VPRINTF("Parsing template %s for protocol %s\n",protoTemplates[idx].c_str(),it->c_str());
-        for(IdxOptions::iterator oit=idxOptions.begin(),oend=idxOptions.end();oit!=oend;oit++)
-        {
-          if(oit->second.size()>idx)
-          {
-            ds.setBool(oit->first,oit->second[idx]);
-          }
-        }
-        for(IdxData::iterator dit=idxData.begin(),dend=idxData.end();dit!=dend;dit++)
-        {
-          if(dit->second.size()>idx)
-          {
-            ds.setVar(dit->first,dit->second[idx]);
-          }
+            VPRINTF("Parsing %s\n", it->c_str());
+            p.parseFile(it->c_str());
         }
 
-        protogen::Template t;
-        t.assignFileFinder(&ff);
-        t.Parse(protoTemplates[idx]);
-        if(debugMode)
+        for(auto& it : pkgToGen)
         {
-          printf("Dump(%s):\n",protoTemplates[idx].c_str());
-          t.dump();
-        }
-        std::string result=t.Generate(ds);
-        if(idx>=protoExtensions.size())
-        {
-          printf("Extension for index %d not found\n",(int)idx);
-          return 1;
-        }
-        std::string fileName=*it;
-        if(protoPrefix.size()>idx)
-        {
-          fileName=protoPrefix[idx]+fileName;
-        }
-        if(protoSuffix.size()>idx)
-        {
-          fileName+=protoSuffix[idx];
-        }
-        fileName+="."+protoExtensions[idx];
-        std::string fullPath=protoOutDir[idx]+fileName;
-        VPRINTF("Generating %s\n",fullPath.c_str());
-        FILE *outProto=fopen(fullPath.c_str(),"wb");
-        if(!outProto)
-        {
-          printf("Failed to open file '%s' for writing\n",fullPath.c_str());
-          return 1;
-        }
-        fwrite(result.c_str(),result.length(),1,outProto);
-        fclose(outProto);
-      }
-      typedef protogen::Protocol::MessagesVector MsgVector;
-      const protogen::Protocol& proto=p.getProtocol(*it);
-      for(MsgVector::const_iterator mit=proto.messages.begin();mit!=proto.messages.end();mit++)
-      {
-        const protogen::Message& msg=p.getMessage(mit->msgName);
-        if(msg.pkg==proto.pkg)
-        {
-          VPRINTF("Add message %s to generation list via protocol %s\n",msg.name.c_str(),proto.name.c_str());
-          msgToGen.push_back(mit->msgName);
-        }
-      }
-    }
-
-    {
-      std::set<std::string> processed;
-      for(size_t idx=0;idx<msgToGen.size();idx++)
-      {
-        const protogen::Message& msg=p.getMessage(msgToGen[idx]);
-        if(!msg.parent.empty())
-        {
-          const protogen::Message& parentMsg=p.getMessage(msg.parent);
-          if(parentMsg.pkg==msg.pkg)
-          {
-            VPRINTF("Add message %s to generation list as parent of %s\n",msg.parent.c_str(),msg.name.c_str());
-            msgToGen.push_back(msg.parent);
-          }
-        }
-        if(processed.find(msg.name)!=processed.end())
-        {
-          continue;
-        }
-        processed.insert(msg.name);
-        for(protogen::FieldsVector::const_iterator fit=msg.fields.begin();fit!=msg.fields.end();fit++)
-        {
-          if(fit->ft.fk==protogen::fkNested)
-          {
-            const protogen::Message& nestedMsg=p.getMessage(fit->ft.typeName);
-            if(nestedMsg.pkg==msg.pkg)
+            const auto& proto = p.getProtocols();
+            for(auto pit = proto.begin(); pit != proto.end(); pit++)
             {
-              VPRINTF("Add message %s to generation list as field of %s\n",fit->ft.typeName.c_str(),msg.name.c_str());
-              msgToGen.push_back(fit->ft.typeName);
+                if(pkgMatch(pit->second.pkg, it))
+                {
+                    VPRINTF("Add protocol %s to generation list via package\n", pit->first.c_str());
+                    protoToGen.push_back(pit->first);
+                }
             }
-          }else if(fit->ft.fk==protogen::fkEnum)
-          {
-            const protogen::Enum& en=p.getEnum(fit->ft.typeName);
-            if(en.pkg==msg.pkg)
+            const protogen::Parser::MessageMap& msgs = p.getMessages();
+            for(auto mit = msgs.begin(), mend = msgs.end(); mit != mend; ++mit)
             {
-              VPRINTF("Add enum %s to generation list as field of %s\n",fit->ft.typeName.c_str(),msg.name.c_str());
-              enumToGen.push_back(fit->ft.typeName);
+                if(pkgMatch(mit->second.pkg, it))
+                {
+                    VPRINTF("Add message %s to generation list via package\n", mit->first.c_str());
+                    msgToGen.push_back(mit->first);
+                }
             }
-          }
-        }
-      }
-      if(genFieldsets)
-      {
-        const protogen::FieldSetsList& lst=p.getFieldSets();
-        for(protogen::FieldSetsList::const_iterator it=lst.begin(),end=lst.end();it!=end;++it)
-        {
-          if(it->used)
-          {
-            VPRINTF("Add fieldset %s to generation list as being used\n",it->name.c_str());
-            fsToGen.push_back(it->name);
-          }
-        }
-      }
-      StrVector::iterator fit=std::find(enumToGen.begin(),enumToGen.end(),"*");
-      if(fit!=enumToGen.end())
-      {
-        enumToGen.clear();
-        const protogen::EnumMap& e=p.getEnums();
-        for(protogen::EnumMap::const_iterator it=e.begin(),end=e.end();it!=end;++it)
-        {
-          VPRINTF("Add enum %s to generation list from explicit wildcard\n",it->first.c_str());
-          enumToGen.push_back(it->first);
-        }
-      }
-      std::sort(msgToGen.begin(),msgToGen.end());
-      StrVector::iterator end=std::unique(msgToGen.begin(),msgToGen.end());
-      msgToGen.erase(end,msgToGen.end());
-      std::sort(enumToGen.begin(),enumToGen.end());
-      end=std::unique(enumToGen.begin(),enumToGen.end());
-      enumToGen.erase(end,enumToGen.end());
-      std::sort(fsToGen.begin(),fsToGen.end());
-      end=std::unique(fsToGen.begin(),fsToGen.end());
-      fsToGen.erase(end,fsToGen.end());
-    }
+            const protogen::EnumMap& enums = p.getEnums();
+            for(auto eit = enums.begin(), eend = enums.end(); eit != eend; ++eit)
+            {
+                if(pkgMatch(eit->second.pkg, it))
+                {
+                    VPRINTF("Add enum %s to generation list via package\n", eit->first.c_str());
+                    enumToGen.push_back(eit->first);
+                }
+            }
+            const protogen::FieldSetsList& fs = p.getFieldSets();
+            for(auto fit = fs.begin(), fend = fs.end(); fit != fend; ++fit)
+            {
+                if(pkgMatch(fit->pkg, it))
+                {
+                    VPRINTF("Add fieldset %s to generation list via package\n", fit->name.c_str());
+                    fsToGen.push_back(fit->name);
+                }
+            }
 
-    for(StrVector::iterator it=msgToGen.begin();it!=msgToGen.end();it++)
-    {
-      ds.initForMessage(p,*it);
-      for(size_t idx=0;idx<msgTemplates.size();idx++)
-      {
-         VPRINTF("Parsing template %s for message %s\n",msgTemplates[idx].c_str(),it->c_str());
-        protogen::Template t;
-        t.assignFileFinder(&ff);
-        t.Parse(msgTemplates[idx]);
-        if(debugMode)
-        {
-          printf("Dump(%s):\n",msgTemplates[idx].c_str());
-          t.dump();
         }
-        std::string result=t.Generate(ds);
-        if(idx>=msgExtensions.size())
-        {
-          printf("Extension for index %d not found\n",(int)idx);
-          return 1;
-        }
-        std::string fileName=*it;
-        if(msgPrefix.size()>idx)
-        {
-          fileName=msgPrefix[idx]+fileName;
-        }
-        if(msgSuffix.size()>idx)
-        {
-          fileName+=msgSuffix[idx];
-        }
-        fileName+="."+msgExtensions[idx];
-        std::string fullPath=msgOutDir[idx]+fileName;
-        VPRINTF("Generating %s\n",fullPath.c_str());
-        FILE *outMsg=fopen(fullPath.c_str(),"wb");
-        if(!outMsg)
-        {
-          printf("Failed to open file '%s' for writing\n",fullPath.c_str());
-          return 1;
-        }
-        fwrite(result.c_str(),result.length(),1,outMsg);
-        fclose(outMsg);
-      }
-    }
 
-    for(StrVector::iterator it=enumToGen.begin();it!=enumToGen.end();it++)
-    {
-      ds.initForEnum(p,*it);
-      for(size_t idx=0;idx<enumTemplates.size();idx++)
-      {
-        VPRINTF("Parsing template %s for enum %s\n",enumTemplates[idx].c_str(),it->c_str());
-        protogen::Template t;
-        t.assignFileFinder(&ff);
-        t.Parse(enumTemplates[idx]);
-        if(debugMode)
+        if(protoToGen.empty() && pkgToGen.empty())
         {
-          printf("Dump(%s):\n",fsTemplates[idx].c_str());
-          t.dump();
+            const protogen::ProtocolsMap& proto = p.getProtocols();
+            for(auto it = proto.begin(); it != proto.end(); it++)
+            {
+                VPRINTF("Add protocol %s to generation list by default\n", it->first.c_str());
+                protoToGen.push_back(it->first);
+            }
         }
-        std::string result=t.Generate(ds);
-        if(idx>=enumExtensions.size())
-        {
-          printf("Enum extension for index %d not found\n",(int)idx);
-          return 1;
-        }
-        std::string fileName=*it;
-        if(enumPrefix.size()>idx)
-        {
-          fileName=enumPrefix[idx]+fileName;
-        }
-        if(enumSuffix.size()>idx)
-        {
-          fileName+=enumSuffix[idx];
-        }
-        fileName+="."+enumExtensions[idx];
-        std::string fullPath=enumOutDir[idx]+fileName;
-        VPRINTF("Generating %s\n",fullPath.c_str());
-        FILE *outEnum=fopen(fullPath.c_str(),"wb");
-        if(!outEnum)
-        {
-          printf("Failed to open file '%s' for writing\n",fullPath.c_str());
-          return 1;
-        }
-        fwrite(result.c_str(),result.length(),1,outEnum);
-        fclose(outEnum);
-      }
-    }
 
-    for(StrVector::iterator it=fsToGen.begin();it!=fsToGen.end();it++)
-    {
-      ds.initForFieldSet(p,p.getFieldset(*it));
-      for(size_t idx=0;idx<fsTemplates.size();idx++)
-      {
-        VPRINTF("Parsing template %s for fieldset %s\n",fsTemplates[idx].c_str(),it->c_str());
-        protogen::Template t;
-        t.assignFileFinder(&ff);
-        t.Parse(fsTemplates[idx]);
-        if(debugMode)
         {
-          printf("Dump(%s):\n",fsTemplates[idx].c_str());
-          t.dump();
+            std::sort(protoToGen.begin(), protoToGen.end());
+            auto end = std::unique(protoToGen.begin(), protoToGen.end());
+            protoToGen.erase(end, protoToGen.end());
         }
-        std::string result=t.Generate(ds);
-        if(idx>=fsExtensions.size())
+
+        for(auto it = protoToGen.begin(); it != protoToGen.end(); it++)
         {
-          printf("FieldSet extension for index %d not found\n",(int)idx);
-          return 1;
+            ds.initForProtocol(p, *it);
+            for(size_t idx = 0; idx < protoTemplates.size(); idx++)
+            {
+                VPRINTF("Parsing template %s for protocol %s\n", protoTemplates[idx].c_str(), it->c_str());
+                for(auto& idxOption : idxOptions)
+                {
+                    if(idxOption.second.size() > idx)
+                    {
+                        ds.setBool(idxOption.first, idxOption.second[idx]);
+                    }
+                }
+                for(auto& dit : idxData)
+                {
+                    if(dit.second.size() > idx)
+                    {
+                        ds.setVar(dit.first, dit.second[idx]);
+                    }
+                }
+
+                protogen::Template t;
+                t.assignFileFinder(&ff);
+                t.Parse(protoTemplates[idx]);
+                if(debugMode)
+                {
+                    printf("Dump(%s):\n", protoTemplates[idx].c_str());
+                    t.dump();
+                }
+                std::string result = t.Generate(ds);
+                if(idx >= protoExtensions.size())
+                {
+                    printf("Extension for index %d not found\n", (int) idx);
+                    return 1;
+                }
+                std::string fileName = *it;
+                if(protoPrefix.size() > idx)
+                {
+                    fileName.insert(0, protoPrefix[idx]);
+                }
+                if(protoSuffix.size() > idx)
+                {
+                    fileName += protoSuffix[idx];
+                }
+                fileName += "." + protoExtensions[idx];
+                std::string fullPath = protoOutDir[idx] + fileName;
+                VPRINTF("Generating %s\n", fullPath.c_str());
+                FILE* outProto = fopen(fullPath.c_str(), "wb");
+                if(!outProto)
+                {
+                    printf("Failed to open file '%s' for writing\n", fullPath.c_str());
+                    return 1;
+                }
+                fwrite(result.c_str(), result.length(), 1, outProto);
+                fclose(outProto);
+            }
+            typedef protogen::Protocol::MessagesVector MsgVector;
+            const protogen::Protocol& proto = p.getProtocol(*it);
+            for(auto mit = proto.messages.begin(); mit != proto.messages.end(); mit++)
+            {
+                const protogen::Message& msg = p.getMessage(mit->msgName);
+                if(msg.pkg == proto.pkg)
+                {
+                    VPRINTF("Add message %s to generation list via protocol %s\n", msg.name.c_str(),
+                            proto.name.c_str());
+                    msgToGen.push_back(mit->msgName);
+                }
+            }
         }
-        std::string fileName=*it;
-        if(fsPrefix.size()>idx)
+
         {
-          fileName=fsPrefix[idx]+fileName;
+            std::set<std::string> processed;
+            for(size_t idx = 0; idx < msgToGen.size(); idx++)
+            {
+                const protogen::Message& msg = p.getMessage(msgToGen[idx]);
+                if(!msg.parent.empty())
+                {
+                    const protogen::Message& parentMsg = p.getMessage(msg.parent);
+                    if(parentMsg.pkg == msg.pkg)
+                    {
+                        VPRINTF("Add message %s to generation list as parent of %s\n", msg.parent.c_str(),
+                                msg.name.c_str());
+                        msgToGen.push_back(msg.parent);
+                    }
+                }
+                if(processed.find(msg.name) != processed.end())
+                {
+                    continue;
+                }
+                processed.insert(msg.name);
+                for(auto fit = msg.fields.begin(); fit != msg.fields.end(); fit++)
+                {
+                    if(fit->ft.fk == protogen::fkNested)
+                    {
+                        const protogen::Message& nestedMsg = p.getMessage(fit->ft.typeName);
+                        if(nestedMsg.pkg == msg.pkg)
+                        {
+                            VPRINTF("Add message %s to generation list as field of %s\n", fit->ft.typeName.c_str(),
+                                    msg.name.c_str());
+                            msgToGen.push_back(fit->ft.typeName);
+                        }
+                    }
+                    else if(fit->ft.fk == protogen::fkEnum)
+                    {
+                        const protogen::Enum& en = p.getEnum(fit->ft.typeName);
+                        if(en.pkg == msg.pkg)
+                        {
+                            VPRINTF("Add enum %s to generation list as field of %s\n", fit->ft.typeName.c_str(),
+                                    msg.name.c_str());
+                            enumToGen.push_back(fit->ft.typeName);
+                        }
+                    }
+                }
+            }
+            if(genFieldsets)
+            {
+                const auto& lst = p.getFieldSets();
+                for(auto it = lst.begin(), end = lst.end(); it != end; ++it)
+                {
+                    if(it->used)
+                    {
+                        VPRINTF("Add fieldset %s to generation list as being used\n", it->name.c_str());
+                        fsToGen.push_back(it->name);
+                    }
+                }
+            }
+            auto fit = std::find(enumToGen.begin(), enumToGen.end(), "*");
+            if(fit != enumToGen.end())
+            {
+                enumToGen.clear();
+                const protogen::EnumMap& e = p.getEnums();
+                for(auto it = e.begin(), end = e.end(); it != end; ++it)
+                {
+                    VPRINTF("Add enum %s to generation list from explicit wildcard\n", it->first.c_str());
+                    enumToGen.push_back(it->first);
+                }
+            }
+            std::sort(msgToGen.begin(), msgToGen.end());
+            auto end = std::unique(msgToGen.begin(), msgToGen.end());
+            msgToGen.erase(end, msgToGen.end());
+            std::sort(enumToGen.begin(), enumToGen.end());
+            end = std::unique(enumToGen.begin(), enumToGen.end());
+            enumToGen.erase(end, enumToGen.end());
+            std::sort(fsToGen.begin(), fsToGen.end());
+            end = std::unique(fsToGen.begin(), fsToGen.end());
+            fsToGen.erase(end, fsToGen.end());
         }
-        if(fsSuffix.size()>idx)
+
+        for(auto it = msgToGen.begin(); it != msgToGen.end(); it++)
         {
-          fileName+=fsSuffix[idx];
+            ds.initForMessage(p, *it);
+            for(size_t idx = 0; idx < msgTemplates.size(); idx++)
+            {
+                VPRINTF("Parsing template %s for message %s\n", msgTemplates[idx].c_str(), it->c_str());
+                protogen::Template t;
+                t.assignFileFinder(&ff);
+                t.Parse(msgTemplates[idx]);
+                if(debugMode)
+                {
+                    printf("Dump(%s):\n", msgTemplates[idx].c_str());
+                    t.dump();
+                }
+                std::string result = t.Generate(ds);
+                if(idx >= msgExtensions.size())
+                {
+                    printf("Extension for index %d not found\n", (int) idx);
+                    return 1;
+                }
+                std::string fileName = *it;
+                if(msgPrefix.size() > idx)
+                {
+                    fileName.insert(0, msgPrefix[idx]);
+                }
+                if(msgSuffix.size() > idx)
+                {
+                    fileName += msgSuffix[idx];
+                }
+                fileName += "." + msgExtensions[idx];
+                std::string fullPath = msgOutDir[idx] + fileName;
+                VPRINTF("Generating %s\n", fullPath.c_str());
+                FILE* outMsg = fopen(fullPath.c_str(), "wb");
+                if(!outMsg)
+                {
+                    printf("Failed to open file '%s' for writing\n", fullPath.c_str());
+                    return 1;
+                }
+                fwrite(result.c_str(), result.length(), 1, outMsg);
+                fclose(outMsg);
+            }
         }
-        fileName+="."+fsExtensions[idx];
-        std::string fullPath=fsOutDir[idx]+fileName;
-        VPRINTF("Generating %s\n",fullPath.c_str());
-        FILE *outFs=fopen(fullPath.c_str(),"wb");
-        if(!outFs)
+
+        for(auto it = enumToGen.begin(); it != enumToGen.end(); it++)
         {
-          printf("Failed to open file '%s' for writing\n",fullPath.c_str());
-          return 1;
+            ds.initForEnum(p, *it);
+            for(size_t idx = 0; idx < enumTemplates.size(); idx++)
+            {
+                VPRINTF("Parsing template %s for enum %s\n", enumTemplates[idx].c_str(), it->c_str());
+                protogen::Template t;
+                t.assignFileFinder(&ff);
+                t.Parse(enumTemplates[idx]);
+                if(debugMode)
+                {
+                    printf("Dump(%s):\n", fsTemplates[idx].c_str());
+                    t.dump();
+                }
+                std::string result = t.Generate(ds);
+                if(idx >= enumExtensions.size())
+                {
+                    printf("Enum extension for index %d not found\n", (int) idx);
+                    return 1;
+                }
+                std::string fileName = *it;
+                if(enumPrefix.size() > idx)
+                {
+                    fileName.insert(0, enumPrefix[idx]);
+                }
+                if(enumSuffix.size() > idx)
+                {
+                    fileName += enumSuffix[idx];
+                }
+                fileName += "." + enumExtensions[idx];
+                std::string fullPath = enumOutDir[idx] + fileName;
+                VPRINTF("Generating %s\n", fullPath.c_str());
+                FILE* outEnum = fopen(fullPath.c_str(), "wb");
+                if(!outEnum)
+                {
+                    printf("Failed to open file '%s' for writing\n", fullPath.c_str());
+                    return 1;
+                }
+                fwrite(result.c_str(), result.length(), 1, outEnum);
+                fclose(outEnum);
+            }
         }
-        fwrite(result.c_str(),result.length(),1,outFs);
-        fclose(outFs);
-      }
-    }
+
+        for(auto it = fsToGen.begin(); it != fsToGen.end(); it++)
+        {
+            ds.initForFieldSet(p, p.getFieldset(*it));
+            for(size_t idx = 0; idx < fsTemplates.size(); idx++)
+            {
+                VPRINTF("Parsing template %s for fieldset %s\n", fsTemplates[idx].c_str(), it->c_str());
+                protogen::Template t;
+                t.assignFileFinder(&ff);
+                t.Parse(fsTemplates[idx]);
+                if(debugMode)
+                {
+                    printf("Dump(%s):\n", fsTemplates[idx].c_str());
+                    t.dump();
+                }
+                std::string result = t.Generate(ds);
+                if(idx >= fsExtensions.size())
+                {
+                    printf("FieldSet extension for index %d not found\n", (int) idx);
+                    return 1;
+                }
+                std::string fileName = *it;
+                if(fsPrefix.size() > idx)
+                {
+                    fileName.insert(0, fsPrefix[idx]);
+                }
+                if(fsSuffix.size() > idx)
+                {
+                    fileName += fsSuffix[idx];
+                }
+                fileName += "." + fsExtensions[idx];
+                std::string fullPath = fsOutDir[idx] + fileName;
+                VPRINTF("Generating %s\n", fullPath.c_str());
+                FILE* outFs = fopen(fullPath.c_str(), "wb");
+                if(!outFs)
+                {
+                    printf("Failed to open file '%s' for writing\n", fullPath.c_str());
+                    return 1;
+                }
+                fwrite(result.c_str(), result.length(), 1, outFs);
+                fclose(outFs);
+            }
+        }
 
 /*
     p.parseFile("MyProtocol.src");
@@ -1279,10 +1345,11 @@ int main(int argc,char* argv[])
     fwrite(result.c_str(),result.length(),1,f);
     fclose(f);
     */
-  } catch(std::exception& e)
-  {
-    printf("Exception:\"%s\"\n",e.what());
-    return 1;
-  }
-  return 0;
+    }
+    catch(std::exception& e)
+    {
+        printf("Exception:\"%s\"\n", e.what());
+        return 1;
+    }
+    return 0;
 }

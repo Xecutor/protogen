@@ -6,106 +6,103 @@
 #include <stdio.h>
 #include <string.h>
 
-class BaseException:public std::exception{
+class BaseException : public std::exception {
 public:
-  BaseException()
-  {
-  }
-  BaseException(const std::string& msg):txt(msg)
-  {
-  }
-  ~BaseException()throw()
-  {
+    BaseException() = default;
 
-  }
-  const char* what()const throw()
-  {
-    return txt.c_str();
-  }
-protected:
-  std::string txt;
-};
-
-class ParsingException:public BaseException{
-public:
-  ParsingException(const std::string& msg,const std::string& file,int line,int col)
-  {
-    char buf[32];
-    txt=msg;
-    if(file.length())
+    explicit BaseException(std::string msg) : txt(std::move(msg))
     {
-      txt+=' ';
-      txt+=file;
-      sprintf(buf,":%d:%d",line,col);
-      txt+=buf;
     }
-  }
+
+    const char* what() const noexcept override
+    {
+        return txt.c_str();
+    }
+
+protected:
+    std::string txt;
 };
 
-class DuplicateItemException:public ParsingException{
+class ParsingException : public BaseException {
 public:
-  DuplicateItemException(const std::string& what,const std::string& name,const std::string& file,int line,int col):
-    ParsingException("Duplicate definition of "+what+" "+name,file,line,col)
-  {
-  }
+    ParsingException(std::string msg, const std::string& file, int line, int col)
+    {
+        char buf[32];
+        txt = std::move(msg);
+        if(file.length())
+        {
+            txt += ' ';
+            txt += file;
+            sprintf(buf, ":%d:%d", line, col);
+            txt += buf;
+        }
+    }
 };
 
-class NotFoundException:public ParsingException{
+class DuplicateItemException : public ParsingException {
 public:
-  NotFoundException(const std::string& what,const std::string& name,const std::string& file,int line,int col):
-    ParsingException(what+" "+name+" not found",file,line,col)
-  {
-  }
+    DuplicateItemException(const std::string& what, const std::string& name, const std::string& file, int line, int col)
+            :
+            ParsingException("Duplicate definition of " + what + " " + name, file, line, col)
+    {
+    }
 };
 
-class MessageNotFoundException:public NotFoundException{
+class NotFoundException : public ParsingException {
 public:
-  MessageNotFoundException(const std::string& name,const std::string& file,int line,int col):
-  NotFoundException("Message",name,file,line,col)
-  {
-  }
+    NotFoundException(const std::string& what, const std::string& name, const std::string& file, int line, int col) :
+            ParsingException(what + " " + name + " not found", file, line, col)
+    {
+    }
 };
 
-class MessageOrTypeNotFoundException:public NotFoundException{
+class MessageNotFoundException : public NotFoundException {
 public:
-  MessageOrTypeNotFoundException(const std::string& name,const std::string& file,int line,int col):
-  NotFoundException("Message or type",name,file,line,col)
-  {
-  }
+    MessageNotFoundException(const std::string& name, const std::string& file, int line, int col) :
+            NotFoundException("Message", name, file, line, col)
+    {
+    }
+};
+
+class MessageOrTypeNotFoundException : public NotFoundException {
+public:
+    MessageOrTypeNotFoundException(const std::string& name, const std::string& file, int line, int col) :
+            NotFoundException("Message or type", name, file, line, col)
+    {
+    }
 };
 
 
-
-class ProtocolNotFoundException:public NotFoundException{
+class ProtocolNotFoundException : public NotFoundException {
 public:
-  ProtocolNotFoundException(const std::string& name,const std::string& file,int line,int col):
-  NotFoundException("Protocol",name,file,line,col)
-  {
-  }
+    ProtocolNotFoundException(const std::string& name, const std::string& file, int line, int col) :
+            NotFoundException("Protocol", name, file, line, col)
+    {
+    }
 };
 
-class TypeNotFoundException:public NotFoundException{
+class TypeNotFoundException : public NotFoundException {
 public:
-  TypeNotFoundException(const std::string& name,const std::string& file,int line,int col):
-  NotFoundException("Type",name,file,line,col)
-  {
-  }
+    TypeNotFoundException(const std::string& name, const std::string& file, int line, int col) :
+            NotFoundException("Type", name, file, line, col)
+    {
+    }
 };
 
-class FieldSetNotFoundException:public NotFoundException{
+class FieldSetNotFoundException : public NotFoundException {
 public:
-  FieldSetNotFoundException(const std::string& name,const std::string& file,int line,int col):
-  NotFoundException("FieldSet",name,file,line,col)
-  {
-  }
+    FieldSetNotFoundException(const std::string& name, const std::string& file, int line, int col) :
+            NotFoundException("FieldSet", name, file, line, col)
+    {
+    }
 };
 
-class PropertyNotFoundException:public NotFoundException{
+class PropertyNotFoundException : public NotFoundException {
 public:
-  PropertyNotFoundException(const std::string& name,const std::string& file,int line,int col):
-  NotFoundException("Property",name,file,line,col)
-  {
-  }
+    PropertyNotFoundException(const std::string& name, const std::string& file, int line, int col) :
+            NotFoundException("Property", name, file, line, col)
+    {
+    }
 };
 
 #endif
