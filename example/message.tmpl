@@ -1,4 +1,10 @@
 messageName=$var message.name$
+$ifdef message.Prop1$
+Prop1=$var message.Prop1$
+$-ifdef$
+$ifdef message.Prop2$
+Prop2=$var message.Prop2$
+$-ifdef$
 $if message.haveparent$
 parentMessage=$var message.parent$
 $-if$

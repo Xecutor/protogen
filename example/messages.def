@@ -1,5 +1,10 @@
 include types.def
 
+property Prop1 _int
+end
+
+property Prop2 _string
+end
 
 enum int AccessLevel
   ReadOnly 1
@@ -27,6 +32,8 @@ enum int DataType
 end
 
 message PersonData
+  property Prop1=2
+  property Prop2="hello"
   1 int uid
   2 string firstName
   3 string lastName
@@ -34,6 +41,7 @@ message PersonData
 end
 
 message LocationData
+  property Prop1=3
   1 location coordinates
   2 string name
 end
