@@ -15,4 +15,4 @@ StrVector splitString(const std::string& str, const std::string& div)
     return rv;
 }
 
-}
+} // namespace protogen

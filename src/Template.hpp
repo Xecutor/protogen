@@ -1,5 +1,4 @@
-#ifndef __PROTOGEN_TEMPLATE_HPP__
-#define __PROTOGEN_TEMPLATE_HPP__
+#pragma once
 
 #include <map>
 #include <vector>
@@ -453,7 +452,5 @@ protected:
     std::string::size_type parseBool(const std::string& expr, BoolTree& bt, std::string::size_type pos = 0, int prio = 0);
 
 };
-}
 
-#endif
-
+} // namespace protogen

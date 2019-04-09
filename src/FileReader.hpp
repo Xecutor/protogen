@@ -1,5 +1,4 @@
-#ifndef __PROTOGEN_FILREADER_HPP__
-#define __PROTOGEN_FILREADER_HPP__
+#pragma once
 
 #include <vector>
 #include <string>
@@ -10,9 +9,7 @@
 
 namespace protogen {
 
-
 typedef std::vector<std::string> StrVector;
-
 
 struct FileReader {
 
@@ -110,7 +107,4 @@ struct FileReader {
     }
 };
 
-}
-
-#endif
-
+} // namespace protogen

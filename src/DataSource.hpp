@@ -1,5 +1,4 @@
-#ifndef __PROTOGEN_DATASOURCE_HPP__
-#define __PROTOGEN_DATASOURCE_HPP__
+#pragma once
 
 #include <map>
 #include <list>
@@ -341,6 +340,4 @@ struct DataSource {
 
 };
 
-}
-
-#endif
+} // namespace protogen

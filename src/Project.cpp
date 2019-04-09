@@ -803,4 +803,4 @@ bool Project::generate()
     return true;
 }
 
-}
+} // namespace protogen

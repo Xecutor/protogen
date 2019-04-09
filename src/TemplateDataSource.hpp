@@ -50,4 +50,4 @@ struct TemplateDataSource : protogen::DataSource {
     }
 };
 
-}
+} // namespace protogen

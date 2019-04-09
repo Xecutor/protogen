@@ -1126,6 +1126,4 @@ void Template::dump()
     }
 }
 
-
-}
-
+} // namespace protogen

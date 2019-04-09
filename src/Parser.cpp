@@ -471,7 +471,7 @@ void Parser::parseFile(const char* fileName)
                         --it;
                     }
                     ft.properties.push_back(p);
-                };
+                }
                 types.insert(FieldTypeMap::value_type(ft.typeName, ft));
             }
                 break;
@@ -1184,4 +1184,4 @@ void Parser::fillPropertyField(TokensList::iterator& it, Property& p, PropertyFi
     }
 }
 
-}
+} // namespace protogen

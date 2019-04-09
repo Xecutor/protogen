@@ -113,5 +113,4 @@ private:
 
 };
 
-
-}
+} // namespace protogen

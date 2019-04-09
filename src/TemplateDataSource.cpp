@@ -261,5 +261,4 @@ void TemplateDataSource::fillFields(protogen::Parser& p, Loop& ld, const protoge
     }
 }
 
-
-}
+} // namespace protogen

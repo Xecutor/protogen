@@ -1,10 +1,11 @@
-#ifndef __PROTOGEN_EXCEPTIONS_HPP__
-#define __PROTOGEN_EXCEPTIONS_HPP__
+#pragma once
 
 #include <exception>
 #include <string>
 #include <stdio.h>
 #include <string.h>
+
+namespace protogen {
 
 class BaseException : public std::exception {
 public:
@@ -42,8 +43,8 @@ public:
 class DuplicateItemException : public ParsingException {
 public:
     DuplicateItemException(const std::string& what, const std::string& name, const std::string& file, int line, int col)
-            :
-            ParsingException("Duplicate definition of " + what + " " + name, file, line, col)
+        :
+        ParsingException("Duplicate definition of " + what + " " + name, file, line, col)
     {
     }
 };
@@ -51,7 +52,7 @@ public:
 class NotFoundException : public ParsingException {
 public:
     NotFoundException(const std::string& what, const std::string& name, const std::string& file, int line, int col) :
-            ParsingException(what + " " + name + " not found", file, line, col)
+        ParsingException(what + " " + name + " not found", file, line, col)
     {
     }
 };
@@ -59,7 +60,7 @@ public:
 class MessageNotFoundException : public NotFoundException {
 public:
     MessageNotFoundException(const std::string& name, const std::string& file, int line, int col) :
-            NotFoundException("Message", name, file, line, col)
+        NotFoundException("Message", name, file, line, col)
     {
     }
 };
@@ -67,7 +68,7 @@ public:
 class MessageOrTypeNotFoundException : public NotFoundException {
 public:
     MessageOrTypeNotFoundException(const std::string& name, const std::string& file, int line, int col) :
-            NotFoundException("Message or type", name, file, line, col)
+        NotFoundException("Message or type", name, file, line, col)
     {
     }
 };
@@ -76,7 +77,7 @@ public:
 class ProtocolNotFoundException : public NotFoundException {
 public:
     ProtocolNotFoundException(const std::string& name, const std::string& file, int line, int col) :
-            NotFoundException("Protocol", name, file, line, col)
+        NotFoundException("Protocol", name, file, line, col)
     {
     }
 };
@@ -84,7 +85,7 @@ public:
 class TypeNotFoundException : public NotFoundException {
 public:
     TypeNotFoundException(const std::string& name, const std::string& file, int line, int col) :
-            NotFoundException("Type", name, file, line, col)
+        NotFoundException("Type", name, file, line, col)
     {
     }
 };
@@ -92,7 +93,7 @@ public:
 class FieldSetNotFoundException : public NotFoundException {
 public:
     FieldSetNotFoundException(const std::string& name, const std::string& file, int line, int col) :
-            NotFoundException("FieldSet", name, file, line, col)
+        NotFoundException("FieldSet", name, file, line, col)
     {
     }
 };
@@ -100,9 +101,9 @@ public:
 class PropertyNotFoundException : public NotFoundException {
 public:
     PropertyNotFoundException(const std::string& name, const std::string& file, int line, int col) :
-            NotFoundException("Property", name, file, line, col)
+        NotFoundException("Property", name, file, line, col)
     {
     }
 };
 
-#endif
+} // namespace protogen

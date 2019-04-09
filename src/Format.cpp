@@ -297,4 +297,4 @@ FormatBuffer& format(const ArgsList& a)
     return *buf;
 }
 
-}
+} //namespace kst

@@ -1,8 +1,6 @@
+#pragma once
+
 #include <utility>
-
-#ifndef __PROTOGEN_PARSER_HPP__
-#define __PROTOGEN_PARSER_HPP__
-
 #include <vector>
 #include <string>
 #include <map>
@@ -378,7 +376,4 @@ protected:
 
 };
 
-}
-
-#endif
-
+} // namespace protogen
