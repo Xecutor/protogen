@@ -212,11 +212,12 @@ void Parser::parseFile(const char* fileName)
                 c = fr.getChar();
                 if(c != '/')
                 {
-                    throw ParsingException("Unexpected symbol at ", foundFile, line, col);
+                    break;
+                    //throw ParsingException("Unexpected symbol at ", foundFile, line, col);
                 }
                 blockComment = false;
-            }
                 break;
+            }
             case '0':
             case '1':
             case '2':
@@ -275,8 +276,8 @@ void Parser::parseFile(const char* fileName)
                 {
                     fr.putChar();
                 }
-            }
                 break;
+            }
             case '`':
             {
                 std::string val;
@@ -289,8 +290,8 @@ void Parser::parseFile(const char* fileName)
                     throw ParsingException("Raw identifier wasn't closed at ", foundFile, line, col);
                 }
                 pushToken(Token(ttIdent, fr.file, line, col, val));
-            }
                 break;
+            }
             case '"':
             {
                 std::string val;
@@ -308,23 +309,23 @@ void Parser::parseFile(const char* fileName)
                     }
                 }
                 pushToken(Token(ttStringValue, fr.file, line, col, val));
-            }
                 break;
+            }
             case 0x0a:
             {
                 pushToken(Token(ttEoln, fr.file, line, col));
-            }
                 break;
+            }
             case '=':
             {
                 pushToken(Token(ttEqual, fr.file, line, col));
-            }
                 break;
+            }
             case ':':
             {
                 pushToken(Token(ttColon, fr.file, line, col));
-            }
                 break;
+            }
             default:
             {
                 if(isspace(c))
@@ -368,8 +369,8 @@ void Parser::parseFile(const char* fileName)
                 {
                     pushToken(Token(ttColon, fr.file, line, col));
                 }
-            }
                 break;
+            }
         }
     }
     pushToken(Token(ttEof, fr.file, line, col));

@@ -588,18 +588,30 @@ void Template::Parse(FileReader& fr)
                         macroName = getContent(fr, "$", c);
                         macro = true;
                     }
-                }
                     break;
+                }
                 case tcPack:
                 {
+                    if(cmdEnd)
+                    {
+                        if(stack.empty() || stack.back().cmd != tcPack)
+                        {
+                            throw TemplateParsingException("Unexpected end of pack command", fr.fileName, line, col);
+                        }
+                        stack.pop_back();
+                    }
+                    else
+                    {
+                        stack.emplace_back(tcPack, ops.size(), line, col);
+                    }
                     Op op;
                     op.op = cmdEnd ? opPackEnd : opPack;
                     op.line = line;
                     op.col = col;
                     op.fidx = fr.file;
                     ops.push_back(op);
-                }
                     break;
+                }
                 case tcIf:
                 {
                     if(cmdEnd)
@@ -632,8 +644,8 @@ void Template::Parse(FileReader& fr)
                         }
                         ops.push_back(op);
                     }
-                }
                     break;
+                }
                 case tcIfdef:
                 case tcIfndef:
                 {
@@ -658,8 +670,8 @@ void Template::Parse(FileReader& fr)
                         op.fidx = fr.file;
                         ops.push_back(op);
                     }
-                }
                     break;
+                }
                 case tcElse:
                 {
                     if(stack.empty())
@@ -700,8 +712,8 @@ void Template::Parse(FileReader& fr)
                     {
                         throw TemplateParsingException("Unexpected else", fr.fileName, line, col);
                     }
-                }
                     break;
+                }
                 case tcForEach:
                 {
                     if(cmdEnd)
@@ -728,8 +740,8 @@ void Template::Parse(FileReader& fr)
                         op.value = getContent(fr, "$", c);
                         ops.push_back(op);
                     }
-                }
                     break;
+                }
                 case tcSelect:
                 {
                     if(cmdEnd)
@@ -769,8 +781,8 @@ void Template::Parse(FileReader& fr)
                         op.value = getContent(fr, "$", c);
                         ops.push_back(op);
                     }
-                }
                     break;
+                }
                 case tcCase:
                 {
                     if(!stack.empty() && (stack.back().cmd == tcCase || stack.back().cmd == tcDefault))
@@ -781,8 +793,8 @@ void Template::Parse(FileReader& fr)
                         ops.push_back(op);
                     }
                     stack.emplace_back(tcCase, ops.size(), line, col, getContent(fr, "$", c));
-                }
                     break;
+                }
                 case tcDefault:
                 {
                     if(!stack.empty() && stack.back().cmd == tcCase)
@@ -793,8 +805,8 @@ void Template::Parse(FileReader& fr)
                         ops.push_back(op);
                     }
                     stack.emplace_back(tcDefault, ops.size(), line, col, "");
-                }
                     break;
+                }
                 case tcVar:
                 {
                     Op op;
@@ -826,8 +838,8 @@ void Template::Parse(FileReader& fr)
                         }
                     }
                     ops.push_back(op);
-                }
                     break;
+                }
                 case tcSetBool:
                 {
                     Op op;
@@ -849,8 +861,8 @@ void Template::Parse(FileReader& fr)
                     }
                     op.boolSetValue = val == "true";
                     ops.push_back(op);
-                }
                     break;
+                }
                 case tcSetVar:
                 {
                     Op op;
@@ -917,8 +929,8 @@ void Template::Parse(FileReader& fr)
                     op.varValue.push_back(Op());
                     op.varValue.back().op = opEnd;
                     ops.push_back(op);
-                }
                     break;
+                }
                 case tcInclude:
                 {
                     std::string file = getContent(fr, "$", c);
@@ -931,8 +943,8 @@ void Template::Parse(FileReader& fr)
                     ifr.file = files.size();
                     files.push_back(file);
                     Parse(ifr);
-                }
                     break;
+                }
                 case tcExpand:
                 {
                     macroName = getContent(fr, " $", c);
@@ -969,8 +981,8 @@ void Template::Parse(FileReader& fr)
                         sprintf(buf, "not enough arguments for macro (at least %d expected)", e.idx + 1);
                         throw TemplateParsingException(buf, fr.fileName, line, col);
                     }
-                }
                     break;
+                }
                 case tcError:
                 {
                     Op op;
@@ -980,8 +992,8 @@ void Template::Parse(FileReader& fr)
                     op.fidx = fr.file;
                     op.value = getContent(fr, "$", c);
                     ops.push_back(op);
-                }
                     break;
+                }
                 case tcComment:
                     for(;;)
                     {

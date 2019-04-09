@@ -567,6 +567,17 @@ bool Project::generate()
     }
 
     {
+        if(std::find(m_msgToGen.begin(), m_msgToGen.end(), "*") != m_msgToGen.end())
+        {
+            m_msgToGen.clear();
+            auto& msgs = m_parser.getMessages();
+            for(auto& msg: msgs)
+            {
+                VPRINTF("Add message %s to generation list from explicit wildcard\n", msg.first);
+                m_msgToGen.push_back(msg.first);
+            }
+        }
+
         std::set<std::string> processed;
         for(size_t idx = 0; idx < m_msgToGen.size(); idx++)
         {
@@ -621,17 +632,21 @@ bool Project::generate()
                 }
             }
         }
+
         auto fit = std::find(m_enumToGen.begin(), m_enumToGen.end(), "*");
         if(fit != m_enumToGen.end())
         {
             m_enumToGen.clear();
-            const protogen::EnumMap& e = m_parser.getEnums();
-            for(auto it = e.begin(), end = e.end(); it != end; ++it)
+            auto& enums = m_parser.getEnums();
+            for(auto& e:enums)
             {
-                VPRINTF("Add enum %s to generation list from explicit wildcard\n", it->first);
-                m_enumToGen.push_back(it->first);
+                VPRINTF("Add enum %s to generation list from explicit wildcard\n", e.first);
+                m_enumToGen.push_back(e.first);
             }
         }
+
+        //VPRINTF("m_msgToGen.size=%u\n", m_msgToGen.size());
+
         std::sort(m_msgToGen.begin(), m_msgToGen.end());
         auto end = std::unique(m_msgToGen.begin(), m_msgToGen.end());
         m_msgToGen.erase(end, m_msgToGen.end());
