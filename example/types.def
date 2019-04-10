@@ -1,8 +1,14 @@
+property pod _bool
+  default type
+  pod true
+end
+
 type bool
 type int
-type string
-type date
-type location
+type string pod=false
+type date pod=false
+type location pod=false
+type array<T,N> pod=false
 
 property opt _bool
   optional true

@@ -75,6 +75,7 @@ end
 
 message DeletePerson 0x0004
   1 int uid
+  2 array<int, 10> hello
 end
 
 message DeletePersonResp:Response 0x1004

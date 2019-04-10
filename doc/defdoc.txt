@@ -2,65 +2,81 @@
 
 Messages format and protocols content can be defined in .def file.
 
+Syntax definition notation: something in {curly brackets} is definition of some entity.
+Curly brackets must not be typed in an actual definition. They are used
+mainly to distinct keywords from user identifiers.
+Something in [square braces] is optional.
+'...' means 'and so on'.
+
 Each field of a message have a type.
 All types used in messages must be defined beforehand.
 Type definition:
 
-type <typename>
+type {typename[<genericparam1[,genericparam2[,...]]>]} [{property1}[={value1} ...]
 
-It is also possible to declare enums:
+For example:
+type int //simple definition of type named 'int'
+type array<T> //definition of type array with generic parameter T
 
-enum <typename> <enumname>
-  <itemname> <itemvalue>
+Enumes also declare a type with possible value from provided set
+Enum definition:
+
+enum {typename} {enumname}
+  {itemname1} {itemvalue1}
+  {itemname2} {itemvalue2}
+  {...}
 end
 
-typename is name of an existing type
+typename is name of an existing type (except generics). This is underlying type of enum value.
 enumname is name of a new type of this enum.
 
-Fields and messages can have optional properties - attached to field
-value of boolean, int or string type.
+Enumes have separate templates.
+
+Types, fields and messages can have optional properties - attached value of boolean, int or string type.
 Each property can have several variables.
 Property definition:
 
-property <property name> <property type>
-  [default [message]]
-  <variable name1> <variable value1>
-  [<variable name2> <variable value2>]
-  <...>
+property {property name} {property type}
+  [default [message|type]]
+  {variable name1} {variable value1}
+  [{variable name2} {variable value2}]
+  {...}
 end
 
 If default is specified, then all variables of this
 property are attached by default to each field.
 If default message is specified, then all variables
 of this property are attached to each message.
+If default type is specified, then all varibales
+of this property are attached to each type.
 
-<property type> can be one of _bool, _int, _string.
+{property type} can be one of _bool, _int or _string.
 
 It it possible to declare commonly used fields beforehand in fieldsets:
-fieldset <name>
-  <field1 type> <field1 name> <field1 tag> [<property>[=<value>] ...]
-  <field2 type> <field2 name> <field2 tag> [<property>[=<value>] ...]
+fieldset {name}
+  {field1 type} {field1 name} {field1 tag} [{property}[={value}] ...]
+  {field2 type} {field2 name} {field2 tag} [{property}[={value}] ...]
   // it is also possible to specify tag first
-  <field3 tag> <field3 type> <field3 name> [<property>[=<value>] ...]
-  <...>
+  {field3 tag} {field3 type} {field3 name} [{property}[={value}] ...]
+  {...}
 end
 
 Message definition :
 
-message <messagename> [message tag]
-  [version <int number>.<int number>]
-  [property <property name>=<property value>]
-  <field1 type> <field1 name> <field1 tag> [<property>[=<value>] ...]
-  <field2 type> <field2 name> <field2 tag> [<property>[=<value>] ...]
+message {messagename} [:{parentmessage}] [message tag]
+  [version {int number}.{int number}]
+  [property {property name}={property value}]
+  {field1 type} {field1 name} {field1 tag} [{property}[={value}] ...]
+  {field2 type} {field2 name} {field2 tag} [{property}[={value}] ...]
   // it is also possible to specify tag first
-  <field3 tag> <field3 type> <field3 name> [<property>[=<value>] ...]
-  <fieldX name> //name of field defined in some fieldset
-  <fieldset>.<fieldname> //field defined in specific fieldset
-  <...>
+  {field3 tag} {field3 type} {field3 name} [{property}[={value}] ...]
+  {fieldX name} //name of field defined in some fieldset
+  {fieldset}.{fieldname} //field defined in specific fieldset
+  {...}
 end
 
 Message tag is integer or hex value.
-If message have tag than variable 'message.havetag' is true
+If message have tag defined than variable 'message.havetag' is true
 and variable 'message.tag' contains tag value.
 Version must be defined for each message if requireMessageVersion
 in project file is set to true.
@@ -68,11 +84,21 @@ Properties of message do not need to be declared.
 They are exported as variables with prefix 'message.'
 both in message template and messages loop in protocol template.
 
-Another message also can be used as a field of a message.
+If parentmessage is specified, then message.haveparent is set to true
+and message.parent have value of parent message type.
+
+Another message also can be used as a field type of a message field.
 In this case field.type is equal to 'nested' and name of nested message contained in
 variable  field.typename.
 If field type is enum, field.type is equal to 'enum' and enum name contained in
 variable field.typename.
+Generic parameters of a field type are appended to field type name.
+For example if type is
+type array<T>
+And field in the message is declared like this:
+  0 items array<Item>
+
+Then in template variable field.array.T will contain 'Item'.
 
 Exported to message template variables:
 message.name
@@ -104,10 +130,10 @@ item loop
   item.value
 
 Protocol definition:
-protocol <protocol name>
-  <message1 name> [<property name1>=<property value1> <...>]
-  <message2 name> [<property name1>=<property value1> <...>]
-  <...>
+protocol {protocol name}
+  {message1 name} [{property name1}={property value1} {...}]
+  {message2 name} [{property name1}={property value1} {...}]
+  {...}
 end
 
 Exported to template variables:

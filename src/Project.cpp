@@ -598,7 +598,7 @@ bool Project::generate()
             processed.insert(msg.name);
             for(auto fit = msg.fields.begin(); fit != msg.fields.end(); fit++)
             {
-                if(fit->ft.fk == protogen::fkNested)
+                if(fit->ft.fk == protogen::FieldKind::Nested)
                 {
                     const protogen::Message& nestedMsg = m_parser.getMessage(fit->ft.typeName);
                     if(nestedMsg.pkg == msg.pkg)
@@ -608,7 +608,7 @@ bool Project::generate()
                         m_msgToGen.push_back(fit->ft.typeName);
                     }
                 }
-                else if(fit->ft.fk == protogen::fkEnum)
+                else if(fit->ft.fk == protogen::FieldKind::Enum)
                 {
                     const protogen::Enum& en = m_parser.getEnum(fit->ft.typeName);
                     if(en.pkg == msg.pkg)

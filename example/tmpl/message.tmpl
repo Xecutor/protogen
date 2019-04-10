@@ -17,7 +17,8 @@ $foreach field$
   type=$pack$$select field.type$
 $case nested$$var field.typename$
 $case enum$$var field.typename$
-$default $var field.type$
+$case array$array<T=$var field.array.T$, N=$var field.array.N$>
+$default$$var field.type$$if !field.type.pod$(non pod)$-if$
 $-select$$-pack$
 
 $if field.optional$

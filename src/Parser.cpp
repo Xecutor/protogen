@@ -6,11 +6,6 @@
 
 namespace protogen {
 
-static bool fileOrIdentChar(char c)
-{
-    return isalnum(c) || c == '_' || c == '.' || c == '/';
-}
-
 std::string TokenTypeToString(TokenType tt)
 {
     switch(tt)
@@ -55,6 +50,8 @@ std::string TokenTypeToString(TokenType tt)
             return "equal";
         case ttColon:
             return "colon";
+        case ttComma:
+            return "comma";
         case ttProtocol:
             return "protocol";
         case ttEnum:
@@ -67,39 +64,50 @@ std::string TokenTypeToString(TokenType tt)
             return "package";
         case ttFileName:
             return "file name";
+        case ttAngleBracketOpen:
+            return "opening angle bracket";
+        case ttAngleBracketClose:
+            return "closing angle bracket";
     }
     return "unknown";
 }
 
-static std::map<std::string, TokenType> kwMap = {
-        {"message",  ttMessage},
-        {"fieldset", ttFieldSet},
-        {"end",      ttEnd},
-        {"include",  ttInclude},
-        {"protocol", ttProtocol},
-        {"version",  ttVersion},
-        {"type",     ttType},
-        {"property", ttProperty},
-        {"_bool",    ttBool},
-        {"_int",     ttInt},
-        {"_string",  ttString},
-        {"default",  ttDefault},
-        {"true",     ttTrue},
-        {"false",    ttFalse},
-        {"enum",     ttEnum},
-        {"package",  ttPackage},
-};;
-
+namespace {
+bool fileOrIdentChar(char c)
+{
+    return isalnum(c) || c == '_' || c == '.' || c == '/';
+}
 
 TokenType findKeyword(const std::string& str)
 {
-    std::map<std::string, TokenType>::const_iterator it = kwMap.find(str);
+    static const std::map<std::string, TokenType> kwMap = {
+            {"message",  ttMessage},
+            {"fieldset", ttFieldSet},
+            {"end",      ttEnd},
+            {"include",  ttInclude},
+            {"protocol", ttProtocol},
+            {"version",  ttVersion},
+            {"type",     ttType},
+            {"property", ttProperty},
+            {"_bool",    ttBool},
+            {"_int",     ttInt},
+            {"_string",  ttString},
+            {"default",  ttDefault},
+            {"true",     ttTrue},
+            {"false",    ttFalse},
+            {"enum",     ttEnum},
+            {"package",  ttPackage},
+    };
+    auto it = kwMap.find(str);
     if(it == kwMap.end())
     {
         return ttIdent;
     }
     return it->second;
 }
+
+}//namespace
+
 
 const Parser::Token& Parser::expect(TokensList::iterator& it, const TokenTypeList& ttl)
 {
@@ -129,6 +137,17 @@ const Parser::Token& Parser::expect(TokensList::iterator& it, const TokenTypeLis
             it->line, it->col);
 }
 
+bool Parser::advanceIf(TokensList::iterator& it, TokenType tt)
+{
+    auto next = it;
+    ++next;
+    if(next->tt == tt)
+    {
+        it = next;
+        return true;
+    }
+    return false;
+}
 
 void Parser::parseFile(const char* fileName)
 {
@@ -326,6 +345,21 @@ void Parser::parseFile(const char* fileName)
                 pushToken(Token(ttColon, fr.file, line, col));
                 break;
             }
+            case ',':
+            {
+                pushToken(Token(ttComma, fr.file, line, col));
+                break;
+            }
+            case '<':
+            {
+                pushToken(Token(ttAngleBracketOpen, fr.file, line, col));
+                break;
+            }
+            case '>':
+            {
+                pushToken(Token(ttAngleBracketClose, fr.file, line, col));
+                break;
+            }
             default:
             {
                 if(isspace(c))
@@ -347,9 +381,11 @@ void Parser::parseFile(const char* fileName)
                         tt = ttFileName;
                     }
                 }
-                if(!fr.eof() && !isspace(c) && c != '=' && c != ':')
+                if(!fr.eof() && !isspace(c)) // && c != '=' && c != ':' && c != ',' && c != '<' && c != '>'
                 {
-                    throw ParsingException("Unexpected symbol at ", foundFile, line, fr.col - 1);
+                    fr.putChar();
+                    //break;
+                    //throw ParsingException("Unexpected symbol at ", foundFile, line, fr.col - 1);
                 }
                 if(tt == ttIdent)
                 {
@@ -361,14 +397,14 @@ void Parser::parseFile(const char* fileName)
                 {
                     pushToken(Token(ttEoln, fr.file, fr.line, fr.col));
                 }
-                if(c == '=')
-                {
-                    pushToken(Token(ttEqual, fr.file, line, col));
-                }
-                if(c == ':')
-                {
-                    pushToken(Token(ttColon, fr.file, line, col));
-                }
+//                if(c == '=')
+//                {
+//                    pushToken(Token(ttEqual, fr.file, line, col));
+//                }
+//                if(c == ':')
+//                {
+//                    pushToken(Token(ttColon, fr.file, line, col));
+//                }
                 break;
             }
         }
@@ -422,8 +458,8 @@ void Parser::parseFile(const char* fileName)
                     unexpected(it);
                 }
                 pkg = expect(it, (TokenTypeList(ttIdent), ttFileName)).value;
-            }
                 break;
+            }
             case ttInclude:
             {
                 if(cc != ccGlobal)
@@ -436,18 +472,51 @@ void Parser::parseFile(const char* fileName)
                 parsePos = it;
                 parsePos++;
                 parseFile(file.c_str());
-            }
                 break;
+            }
             case ttType:
             {
                 if(cc != ccGlobal)
                 {
                     unexpected(it);
                 }
-                FieldType ft;
+                TypeDef td;
                 Token t = expect(it, ttIdent);
-                ft.typeName = t.value;
-                ft.fk = fkType;
+                td.typeName = t.value;
+                if(advanceIf(it, ttAngleBracketOpen))
+                {
+                    td.tk = TypeKind::Generic;
+                    std::set<std::string> genericParams;
+                    while(expect(it, (TokenTypeList(ttIdent), ttAngleBracketClose)).tt != ttAngleBracketClose)
+                    {
+                        std::string genericParamName = it->value;
+                        if(genericParams.find(genericParamName) != genericParams.end())
+                        {
+                            throw DuplicateItemException("generic parameter", it->value, files[it->file], it->line,
+                                    it->col);
+                        }
+                        genericParams.insert(genericParamName);
+                        td.genericParamNames.emplace_back(std::move(genericParamName));
+                        if(expect(it, (TokenTypeList(ttComma), ttAngleBracketClose)).tt == ttAngleBracketClose)
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    td.tk = TypeKind::Normal;
+                }
+
+                for(auto& p : properties)
+                {
+                    auto& prop = p.second;
+                    if(prop.def == pdDefaultForType)
+                    {
+                        td.properties.emplace_back(prop);
+                    }
+                }
+
                 while(expect(it, (TokenTypeList(ttIdent), ttEoln)).tt != ttEoln)
                 {
                     Property p;
@@ -471,11 +540,11 @@ void Parser::parseFile(const char* fileName)
                     {
                         --it;
                     }
-                    ft.properties.push_back(p);
+                    td.properties.push_back(p);
                 }
-                types.insert(FieldTypeMap::value_type(ft.typeName, ft));
-            }
+                types.emplace(td.typeName, td);
                 break;
+            }
             case ttProperty:
             {
                 if(cc != ccGlobal && cc != ccMessage && cc != ccFieldSet && cc != ccEnum)
@@ -532,8 +601,8 @@ void Parser::parseFile(const char* fileName)
                         curEnum.properties.push_back(p);
                     }
                 }
-            }
                 break;
+            }
             case ttMessage:
             {
                 if(cc != ccGlobal)
@@ -572,8 +641,8 @@ void Parser::parseFile(const char* fileName)
                 }
                 cc = ccMessage;
                 msgHaveVersion = false;
-            }
                 break;
+            }
             case ttFieldSet:
             {
                 if(cc != ccGlobal)
@@ -590,8 +659,8 @@ void Parser::parseFile(const char* fileName)
                     throw DuplicateItemException("fieldset", curFieldSet.name, files[it->file], it->line, it->col);
                 }
                 cc = ccFieldSet;
-            }
                 break;
+            }
             case ttEnum:
             {
                 if(cc != ccGlobal)
@@ -612,8 +681,8 @@ void Parser::parseFile(const char* fileName)
                 }
                 cc = ccEnum;
                 enumHaveType = false;
-            }
                 break;
+            }
             case ttEnd:
             {
                 if(cc == ccMessage)
@@ -662,8 +731,8 @@ void Parser::parseFile(const char* fileName)
                 {
                     cc = ccGlobal;
                 }
-            }
                 break;
+            }
             case ttVersion:
             {
                 if(cc != ccMessage && cc != ccProtocol)
@@ -683,15 +752,15 @@ void Parser::parseFile(const char* fileName)
                 {
                     throw ParsingException("Failed to parse version", files[t.file], t.line, t.col);
                 }
-                if(vmajor<0 || vmajor>255 || vminor<0 || vminor>255)
+                if(vmajor < 0 || vmajor > 255 || vminor < 0 || vminor > 255)
                 {
                     throw ParsingException("Version value is out of range", files[t.file], t.line, t.col);
                 }
                 curMessage.majorVersion = static_cast<uint16_t>(vmajor);
                 curMessage.minorVersion = static_cast<uint16_t>(vminor);
                 msgHaveVersion = true;
-            }
                 break;
+            }
             case ttFileName:
             case ttIdent:
             {
@@ -706,17 +775,53 @@ void Parser::parseFile(const char* fileName)
                     bool fsField = false;
                     if(ftIt != types.end())
                     {
-                        f.ft = ftIt->second;
-                        f.ft.fk = fkType;
+                        const auto& tdef = ftIt->second;
+                        f.ft.typeName = tdef.typeName;
+                        f.ft.fk = FieldKind::Type;
+                        if(!tdef.genericParamNames.empty())
+                        {
+                            expect(it, ttAngleBracketOpen);
+                            for(size_t i = 0; i < tdef.genericParamNames.size(); ++i)
+                            {
+                                const auto& token = expect(it, (TokenTypeList(
+                                        ttIdent), ttIntValue, ttStringValue, ttTrue, ttFalse, ttHexValue));
+                                PropertyField pf;
+                                if(token.tt == ttIdent || token.tt == ttStringValue)
+                                {
+                                    pf.pt = ptString;
+                                    pf.strValue = token.value;
+                                }
+                                else if(token.tt == ttIntValue || token.tt == ttHexValue)
+                                {
+                                    pf.pt = ptInt;
+                                    pf.intValue = token.asInt();
+                                }
+                                else
+                                {
+                                    pf.pt = ptBool;
+                                    pf.boolValue = token.asBool();
+                                }
+                                pf.name = tdef.genericParamNames[i];
+                                f.ft.genericParamsValues.push_back(std::move(pf));
+                                if(i != tdef.genericParamNames.size() - 1)
+                                {
+                                    expect(it, ttComma);
+                                }
+                                else
+                                {
+                                    expect(it, ttAngleBracketClose);
+                                }
+                            }
+                        }
                     }
                     else if(messages.find(it->value) != messages.end())
                     {
-                        f.ft.fk = fkNested;
+                        f.ft.fk = FieldKind::Nested;
                         f.ft.typeName = it->value;
                     }
                     else if(enumMap.find(it->value) != enumMap.end())
                     {
-                        f.ft.fk = fkEnum;
+                        f.ft.fk = FieldKind::Enum;
                         f.ft.typeName = it->value;
                     }
                     else
@@ -978,8 +1083,8 @@ void Parser::parseFile(const char* fileName)
                     }
                     curEnum.values.push_back(ev);
                 }
-            }
                 break;
+            }
             case ttProtocol:
             {
                 if(cc != ccGlobal)
@@ -994,8 +1099,8 @@ void Parser::parseFile(const char* fileName)
                     throw DuplicateItemException("protocol", curProto.name, files[it->file], it->line, it->col);
                 }
                 cc = ccProtocol;
-            }
                 break;
+            }
             case ttDefault:
             {
                 if(cc != ccProperty)
@@ -1021,8 +1126,8 @@ void Parser::parseFile(const char* fileName)
                 {
                     curProperty.def = pdDefaultForType;
                 }
-            }
                 break;
+            }
             case ttEof:
             {
                 if(cc != ccGlobal)
@@ -1048,8 +1153,8 @@ void Parser::parseFile(const char* fileName)
                     pkg = pkgStack.back();
                     pkgStack.pop_back();
                 }
-            }
                 break;
+            }
             case ttEoln:
                 break;
             case ttIntValue:
@@ -1061,8 +1166,8 @@ void Parser::parseFile(const char* fileName)
                 }
                 tag = it->asInt();
                 haveTag = true;
-            }
                 break;
+            }
             default:
                 unexpected(it);
                 break;
@@ -1087,16 +1192,16 @@ void Parser::parseFile(const char* fileName)
                     field.properties.push_front(prop.second);
                 }
             }
-            else if(prop.second.def == pdDefaultForType)
-            {
-                for(auto& field : message.second.fields)
-                {
-                    if(field.ft.fk == fkType)
-                    {
-                        field.ft.properties.push_front(prop.second);
-                    }
-                }
-            }
+//            else if(prop.second.def == pdDefaultForType)
+//            {
+//                for(auto& field : message.second.fields)
+//                {
+//                    if(field.ft.fk == FieldKind::Type)
+//                    {
+//                        field.ft.properties.push_front(prop.second);
+//                    }
+//                }
+//            }
         }
         if(prop.second.def == pdDefaultForEnum)
         {
@@ -1115,13 +1220,13 @@ void Parser::parseFile(const char* fileName)
                     {
                         field.properties.push_front(prop.second);
                     }
-                    else
-                    {
-                        if(field.ft.fk == fkType)
-                        {
-                            field.ft.properties.push_front(prop.second);
-                        }
-                    }
+//                    else
+//                    {
+//                        if(field.ft.fk == fkType)
+//                        {
+//                            field.ft.properties.push_front(prop.second);
+//                        }
+//                    }
                 }
             }
         }

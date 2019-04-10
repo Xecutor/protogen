@@ -17,8 +17,8 @@ namespace protogen {
 enum TokenType {
     ttIdent, ttInclude, ttMessage, ttFieldSet, ttEnd, ttVersion,
     ttVersionValue, ttType, ttProperty, ttBool, ttInt, ttString,
-    ttIntValue, ttHexValue, ttStringValue, ttDefault, ttTrue, ttFalse, ttEqual, ttColon,
-    ttProtocol, ttEnum, ttFileName, ttEoln, ttPackage, ttEof
+    ttIntValue, ttHexValue, ttStringValue, ttDefault, ttTrue, ttFalse, ttEqual, ttColon, ttComma,
+    ttProtocol, ttEnum, ttFileName, ttEoln, ttPackage, ttAngleBracketOpen, ttAngleBracketClose, ttEof
 };
 
 std::string TokenTypeToString(TokenType tt);
@@ -69,19 +69,31 @@ struct Property {
 typedef std::list<Property> PropertyList;
 typedef std::map<std::string, Property> PropertyMap;
 
-enum FieldKind {
-    fkType,
-    fkNested,
-    fkEnum
+enum class FieldKind {
+    Type,
+    Nested,
+    Enum
+};
+
+enum class TypeKind {
+    Normal,
+    Generic
+};
+
+struct TypeDef {
+    std::string typeName;
+    TypeKind tk;
+    PropertyList properties;
+    std::vector<std::string> genericParamNames;
 };
 
 struct FieldType {
     std::string typeName;
     FieldKind fk;
-    PropertyList properties;
+    std::vector<PropertyField> genericParamsValues;
 };
 
-typedef std::map<std::string, FieldType> FieldTypeMap;
+typedef std::map<std::string, TypeDef> FieldTypeMap;
 
 
 struct Enum {
@@ -206,6 +218,16 @@ public:
     }
 
     void parseFile(const char* fileName);
+
+    const TypeDef& getType(const std::string& name)const
+    {
+        auto it = types.find(name);
+        if(it == types.end())
+        {
+            throw MessageOrTypeNotFoundException(name, "", 0, 0);
+        }
+        return it->second;
+    }
 
     const ProtocolsMap& getProtocols() const
     {
@@ -366,6 +388,7 @@ protected:
     };
 
     const Token& expect(TokensList::iterator& it, const TokenTypeList& ttl);
+    bool advanceIf(TokensList::iterator& it, TokenType tt);
 
     void unexpected(TokensList::iterator it)
     {

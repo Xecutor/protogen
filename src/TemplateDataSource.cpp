@@ -187,7 +187,7 @@ void TemplateDataSource::fillFields(protogen::Parser& p, Loop& ld, const protoge
         Namespace& fn = ld.newItem();
         fn.addVar("name", it->name);
         fn.addVar("tag", std::to_string(it->tag));
-        if(it->ft.fk == fkNested)
+        if(it->ft.fk == FieldKind::Nested)
         {
             fn.addVar("type", "nested");
             fn.addVar("typename", it->ft.typeName);
@@ -197,7 +197,7 @@ void TemplateDataSource::fillFields(protogen::Parser& p, Loop& ld, const protoge
                 fn.addVar("typepackage", fmsg.pkg);
             }
         }
-        else if(it->ft.fk == fkEnum)
+        else if(it->ft.fk == FieldKind::Enum)
         {
             fn.addVar("type", "enum");
             fn.addVar("typename", it->ft.typeName);
@@ -208,26 +208,46 @@ void TemplateDataSource::fillFields(protogen::Parser& p, Loop& ld, const protoge
                 fn.addVar("typepackage", fenum.pkg);
             }
         }
-        else
+        else if(it->ft.fk == FieldKind::Type)
         {
             const FieldType& ft = it->ft;
             fn.addVar("type", ft.typeName);
-            for(const auto& prop : ft.properties)
+            auto& typeDef = p.getType(ft.typeName);
+
+            for(const auto& prop : typeDef.properties)
             {
                 for(const auto& field : prop.fields)
                 {
+                    auto name = fn.parentName + ".type." + field.name;
                     if(field.pt == ptBool)
                     {
-                        fn.addBool(field.name, field.boolValue);
+                        fn.addBool(name, field.boolValue);
                     }
                     else if(field.pt == ptInt)
                     {
-                        fn.addVar(field.name, std::to_string(field.intValue));
+                        fn.addVar(name, std::to_string(field.intValue));
                     }
                     else
                     {
-                        fn.addVar(field.name, field.strValue);
+                        fn.addVar(name, field.strValue);
                     }
+                }
+            }
+            for(auto& gen:ft.genericParamsValues)
+            {
+                auto name = fn.parentName + "." + ft.typeName + "." + gen.name;
+
+                if(gen.pt == ptBool)
+                {
+                    fn.addBool(name, gen.boolValue);
+                }
+                else if(gen.pt == ptInt)
+                {
+                    fn.addVar(name, std::to_string(gen.intValue));
+                }
+                else
+                {
+                    fn.addVar(name, gen.strValue);
                 }
             }
         }
