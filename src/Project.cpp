@@ -86,7 +86,7 @@ std::string interpolateString(const std::string& str)
         rv += c;
         prevPos = ++pos;
     }
-    rv.append(str, prevPos);
+    rv.append(str, prevPos, std::string::npos);
     return rv;
 }
 
