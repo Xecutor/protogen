@@ -16,3 +16,10 @@ add_executable(protogen ${PROTOGEN_SRC})
 if(MSVC)
   target_compile_definitions(protogen PRIVATE -D_CRT_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_DEPRECATE)
 endif()
+
+if(PROTOGEN_INSTALL_DIR)
+    install(
+        TARGETS protogen
+        CONFIGURATIONS Debug Release
+        RUNTIME DESTINATION ${PROTOGEN_INSTALL_DIR})
+endif()

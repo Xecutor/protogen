@@ -59,6 +59,37 @@ void addPathEndSlash(std::string& path)
     }
 }
 
+std::string interpolateString(const std::string& str)
+{
+    std::string::size_type pos = 0, prevPos = 0;
+    std::string rv;
+    while((pos = str.find('\\', pos)) != std::string::npos)
+    {
+        rv.append(str, prevPos, pos - prevPos);
+        if(pos == str.length() - 1)
+        {
+            break;
+        }
+        char c = str[++pos];
+        switch(c)
+        {
+            case 'n':
+                c = '\n';
+                break;
+            case 'r':
+                c = '\r';
+                break;
+            case 't':
+                c = '\t';
+                break;
+        }
+        rv += c;
+        prevPos = ++pos;
+    }
+    rv.append(str, prevPos);
+    return rv;
+}
+
 }
 
 bool Project::load(const std::string& fileName, const StrVector& optionsOverride)
@@ -349,9 +380,17 @@ bool Project::load(const std::string& fileName, const StrVector& optionsOverride
         {
             m_printDeps = true;
         }
+        else if(name == "printDepsDelimeter")
+        {
+            m_printDepsDelimeter = interpolateString(value);
+        }
         else if(name == "printGen")
         {
             m_printGen = true;
+        }
+        else if(name == "printGenDelimeter")
+        {
+            m_printGenDelimeter = interpolateString(value);
         }
         else if(name == "debugMode")
         {
@@ -481,7 +520,7 @@ bool Project::load(const std::string& fileName, const StrVector& optionsOverride
     }
     if(m_printDeps)
     {
-        print("%s\n", fileName);
+        print("%s%s", fileName.c_str(), m_printDepsDelimeter.c_str());
     }
     return true;
 }
@@ -538,7 +577,7 @@ bool Project::generate()
 
             if(m_printGen)
             {
-                print("%s\n", fullPath);
+                print("%s%s", fullPath, m_printGenDelimeter);
             }
             VPRINTF("Generating %s\n", fullPath);
             if(!m_dryrun)
@@ -692,7 +731,7 @@ bool Project::generate()
             std::string fullPath = m_globalOutDir + m_msgOutDir[idx] + fileName;
             if(m_printGen)
             {
-                print("%s\n", fullPath);
+                print("%s%s", fullPath, m_printGenDelimeter);
             }
             VPRINTF("Generating %s\n", fullPath);
             if(!m_dryrun)
@@ -772,7 +811,7 @@ bool Project::generate()
             std::string result = t.Generate(m_dataSource);
             if(idx >= m_fsExtensions.size())
             {
-                print("FieldSet extension for index %d not found\n", (int) idx);
+                print("FieldSet extension for index %d not found\n", static_cast<int>(idx));
                 return false;
             }
             std::string fileName = it;
@@ -788,7 +827,7 @@ bool Project::generate()
             std::string fullPath = m_globalOutDir + m_fsOutDir[idx] + fileName;
             if(m_printGen)
             {
-                print("%s\n", fullPath);
+                print("%s%s", fullPath, m_printGenDelimeter);
             }
             VPRINTF("Generating %s\n", fullPath);
             if(!m_dryrun)
@@ -808,11 +847,11 @@ bool Project::generate()
     {
         for(auto& file:m_parser.getAllFiles())
         {
-            print("%s\n", file);
+            print("%s%s", file, m_printDepsDelimeter);
         }
         for(auto& file:ff.foundFiles)
         {
-            print("%s\n", file);
+            print("%s%s", file, m_printDepsDelimeter);
         }
     }
     return true;
