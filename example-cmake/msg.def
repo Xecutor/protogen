@@ -1,0 +1,5 @@
+type int
+message Test
+  0 int fieldx
+  1 int another
+end

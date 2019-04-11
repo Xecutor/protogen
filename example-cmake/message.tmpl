@@ -1,0 +1,15 @@
+#pragma once
+
+class $var message.name$ {
+public:
+$foreach field$
+    $var field.type$ get$var field.name:ucf$()const
+    {
+        return m_$var field.name$;
+    }
+$-foreach$
+private:
+$foreach field$
+    $var field.type$ m_$var field.name$ = 0; //test1 x
+$-foreach$
+};

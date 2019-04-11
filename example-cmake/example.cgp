@@ -1,0 +1,16 @@
+source=msg.def
+
+out.dir=out
+
+searchInCurDir=false
+
+message.template=message.tmpl
+#protocol.template=protocol.tmpl
+#enum.template=enum.tmpl
+#comment 1
+
+out.extension=hpp
+
+generate.message=Test
+
+#test
