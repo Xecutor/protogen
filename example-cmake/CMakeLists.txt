@@ -24,12 +24,12 @@ set(PROTOGEN_CMD ${CMAKE_BINARY_DIR}/protogen_bin/protogen)
 
 execute_process(
   COMMAND ${PROTOGEN_CMD}
-  ${PROJECT_SOURCE_DIR}/example.cgp --dryRun=true --printDeps=true "--printDepsDelimeter=;" --out.global.dir=${PROJECT_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/example.cgp --dryRun=true --printDeps=true "--printDepsDelimiter=;" --out.global.dir=${PROJECT_SOURCE_DIR}
   OUTPUT_VARIABLE DEPS_LIST)
 
 execute_process(
   COMMAND ${PROTOGEN_CMD}
-  ${PROJECT_SOURCE_DIR}/example.cgp --dryRun=true --printGen=true "--printGenDelimeter=;" --out.global.dir=${PROJECT_SOURCE_DIR}
+  ${PROJECT_SOURCE_DIR}/example.cgp --dryRun=true --printGen=true "--printGenDelimiter=;" --out.global.dir=${PROJECT_SOURCE_DIR}
   OUTPUT_VARIABLE GEN_LIST)
 
 add_custom_command(

@@ -77,9 +77,9 @@ dryRun={true|false}
   Parse everything, but do not generate actual files.
 printDeps={true|false}
   Print all dependencies to stdout
-printDepsDelimeter={string}
-  Delimeter for dependencies, default is end of line ("\n").
+printDepsDelimiter={string}
+  Delimiter for dependencies, default is end of line ("\n").
 printGen={true|false}
   Print generated files to stdout
-printGenDelimeter={string}
-  Delimeter for generated files, default is end of line ("\n").
+printGenDelimiter={string}
+  Delimiter for generated files, default is end of line ("\n").

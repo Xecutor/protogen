@@ -73,8 +73,8 @@ private:
     bool m_searchInCurDur = true;
 
     std::string m_globalOutDir;
-    std::string m_printGenDelimeter = "\n";
-    std::string m_printDepsDelimeter = "\n";
+    std::string m_printGenDelimiter = "\n";
+    std::string m_printDepsDelimiter = "\n";
     StrVector m_protoOutDir;
     StrVector m_msgOutDir;
     StrVector m_enumOutDir;

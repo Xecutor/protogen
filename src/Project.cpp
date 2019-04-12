@@ -380,17 +380,17 @@ bool Project::load(const std::string& fileName, const StrVector& optionsOverride
         {
             m_printDeps = true;
         }
-        else if(name == "printDepsDelimeter")
+        else if(name == "printDepsDelimiter")
         {
-            m_printDepsDelimeter = interpolateString(value);
+            m_printDepsDelimiter = interpolateString(value);
         }
         else if(name == "printGen")
         {
             m_printGen = true;
         }
-        else if(name == "printGenDelimeter")
+        else if(name == "printGenDelimiter")
         {
-            m_printGenDelimeter = interpolateString(value);
+            m_printGenDelimiter = interpolateString(value);
         }
         else if(name == "debugMode")
         {
@@ -520,7 +520,7 @@ bool Project::load(const std::string& fileName, const StrVector& optionsOverride
     }
     if(m_printDeps)
     {
-        print("%s%s", fileName.c_str(), m_printDepsDelimeter.c_str());
+        print("%s%s", fileName.c_str(), m_printDepsDelimiter.c_str());
     }
     return true;
 }
@@ -577,7 +577,7 @@ bool Project::generate()
 
             if(m_printGen)
             {
-                print("%s%s", fullPath, m_printGenDelimeter);
+                print("%s%s", fullPath, m_printGenDelimiter);
             }
             VPRINTF("Generating %s\n", fullPath);
             if(!m_dryrun)
@@ -731,7 +731,7 @@ bool Project::generate()
             std::string fullPath = m_globalOutDir + m_msgOutDir[idx] + fileName;
             if(m_printGen)
             {
-                print("%s%s", fullPath, m_printGenDelimeter);
+                print("%s%s", fullPath, m_printGenDelimiter);
             }
             VPRINTF("Generating %s\n", fullPath);
             if(!m_dryrun)
@@ -827,7 +827,7 @@ bool Project::generate()
             std::string fullPath = m_globalOutDir + m_fsOutDir[idx] + fileName;
             if(m_printGen)
             {
-                print("%s%s", fullPath, m_printGenDelimeter);
+                print("%s%s", fullPath, m_printGenDelimiter);
             }
             VPRINTF("Generating %s\n", fullPath);
             if(!m_dryrun)
@@ -847,11 +847,11 @@ bool Project::generate()
     {
         for(auto& file:m_parser.getAllFiles())
         {
-            print("%s%s", file, m_printDepsDelimeter);
+            print("%s%s", file, m_printDepsDelimiter);
         }
         for(auto& file:ff.foundFiles)
         {
-            print("%s%s", file, m_printDepsDelimeter);
+            print("%s%s", file, m_printDepsDelimiter);
         }
     }
     return true;
